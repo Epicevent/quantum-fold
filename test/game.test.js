@@ -21,10 +21,20 @@ import {
   orientationValue,
   sourceFromBZ,
   sourceMultiplicity,
+  signedAreaDensity,
   signedPeriodicDelta,
   stepMission,
   stepSource,
 } from "../src/game.js";
+import {
+  applyProbeHit,
+  createShooterState,
+  probeGeometryAt,
+  shooterEvidence,
+  sourceForFoldDrill,
+  startShooter,
+  stepShooter,
+} from "../src/shooter-mechanics.js";
 
 test("periodic wraparound returns through the opposite edge without losing velocity", () => {
   const moved = stepSource(
@@ -501,4 +511,108 @@ test("the explanation exposes explicit before, fold, and after states", () => {
   assert.match(philosophy, /data-scene-v="0\.266666666667"/);
   assert.match(philosophy, /data-scene-v="0\.400"/);
   assert.match(controller, /button\.addEventListener\("click"/);
+});
+
+test("shooter probes recover the signed area density and det g = lambda squared", () => {
+  for (const [kx, ky] of [
+    [0, 0],
+    [Math.PI, 0],
+    [Math.PI, Math.PI],
+  ]) {
+    const source = sourceFromBZ(kx, ky);
+    const geometry = probeGeometryAt(source);
+    assert.ok(Math.abs(geometry.lambda - signedAreaDensity(source.u, source.v)) < 1e-7);
+    assert.ok(Math.abs(geometry.determinant - geometry.lambda ** 2) < 1e-8);
+    assert.equal(geometry.inverseAvailable, true);
+  }
+});
+
+test("the fold target makes first derivative damage fail and exposes the next derivative", () => {
+  const geometry = probeGeometryAt(sourceForFoldDrill());
+  assert.ok(geometry.gyy < 1e-12);
+  assert.ok(geometry.determinant < 1e-12);
+  assert.ok(Math.abs(geometry.lambda) < 1e-7);
+  assert.equal(geometry.inverseAvailable, false);
+  assert.ok(Math.abs(geometry.lambdaV + 1 / 6) < 1e-6);
+});
+
+test("combat damage follows the calculation: area at regular points, limit response at the fold", () => {
+  const regularState = createShooterState();
+  const regular = regularState.enemies[0];
+  const regularHp = regular.hp;
+  applyProbeHit(regularState, regular, "x");
+  assert.equal(regular.hp, regularHp);
+  applyProbeHit(regularState, regular, "y");
+  assert.ok(regular.hp < regularHp);
+  assert.equal(regularState.lastImpact.mode, "area");
+
+  const foldState = createShooterState();
+  const fold = foldState.enemies[0];
+  fold.fold = true;
+  fold.hp = 250;
+  fold.maxHp = 250;
+  fold.geometry = probeGeometryAt(sourceForFoldDrill());
+  const foldHp = fold.hp;
+  applyProbeHit(foldState, fold, "x");
+  applyProbeHit(foldState, fold, "y");
+  assert.equal(fold.hp, foldHp);
+  assert.equal(fold.rankDropSeen, true);
+  assert.equal(foldState.limitUnlocked, true);
+  assert.equal(foldState.lastImpact.mode, "rank-drop");
+  assert.equal(fold.probes.x, true, "the surviving tangent remains tagged for the limit round");
+  applyProbeHit(foldState, fold, "limit");
+  assert.ok(fold.hp < foldHp);
+  assert.equal(foldState.lastImpact.mode, "limit");
+  const firstLimitHp = fold.hp;
+  applyProbeHit(foldState, fold, "limit");
+  assert.equal(fold.hp, firstLimitHp, "a limit round cannot reuse a consumed x tangent");
+  applyProbeHit(foldState, fold, "x");
+  applyProbeHit(foldState, fold, "limit");
+  assert.ok(fold.hp < firstLimitHp, "each later limit hit rebuilds the (x, second-y) pair");
+});
+
+test("shooter fixed-step replay is deterministic", () => {
+  const left = createShooterState();
+  const right = createShooterState();
+  startShooter(left);
+  startShooter(right);
+  for (let frame = 0; frame < 240; frame += 1) {
+    const input = {
+      moveX: frame < 80 ? 0.4 : -0.25,
+      moveY: frame < 120 ? -0.2 : 0.1,
+      aimX: 0,
+      aimY: -1,
+      fireX: frame === 12,
+      fireY: frame === 72,
+      fireLimit: false,
+    };
+    stepShooter(left, input);
+    stepShooter(right, input);
+  }
+  assert.deepEqual(shooterEvidence(left), shooterEvidence(right));
+  assert.deepEqual(left.player, right.player);
+  assert.deepEqual(left.bullets, right.bullets);
+});
+
+test("the added shooter is a separate playable mode with an explicit calculation contract", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const index = readFileSync(resolve(root, "index.html"), "utf8");
+  const shooter = readFileSync(resolve(root, "shooter.html"), "utf8");
+  const renderer = readFileSync(resolve(root, "src", "shooter.js"), "utf8");
+  const philosophy = readFileSync(resolve(root, "philosophy.html"), "utf8");
+
+  assert.match(index, /href="\.\/shooter\.html"/);
+  for (const requiredText of [
+    "DIFFERENTIAL STRIKE",
+    "∂<sub>x</sub>P",
+    "∂<sub>y</sub>P",
+    "√det g = |λ̄|",
+    "0 DAMAGE · g<sup>−1</sup> LOCKED",
+    "∂<sub>y</sub>²P",
+  ]) {
+    assert.ok(shooter.includes(requiredText), `shooter screen should expose: ${requiredText}`);
+  }
+  assert.ok(renderer.includes("THE DAMAGE IS THE CALCULATION") || shooter.includes("THE DAMAGE IS THE CALCULATION"));
+  assert.ok(philosophy.includes("shooter는 “어느 미분이 사라져 역행렬이 막히며 다음 미분이 무엇을 복구하는가”"));
+  assert.ok(philosophy.includes("singular curvature 적분 자체를 shooter damage라고 부르지는 않는다"));
 });

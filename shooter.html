@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071019">
+    <meta name="description" content="A deterministic differential shooter: cross first-derivative rounds for area damage, then break a fold with a second derivative.">
+    <title>Quantum Fold: Differential Strike</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./shooter.css">
+  </head>
+  <body>
+    <div class="strike-noise" aria-hidden="true"></div>
+
+    <main class="strike-app" id="strike-app">
+      <header class="strike-topbar">
+        <a class="strike-brand" href="./index.html" aria-label="Return to the torus game">
+          <span class="strike-brand-mark" aria-hidden="true">∂</span>
+          <span><b>QUANTUM FOLD</b><small>DIFFERENTIAL STRIKE</small></span>
+        </a>
+        <div class="wave-id">
+          <span id="strike-wave-number">01</span>
+          <div><small>DRILL</small><b id="strike-wave-kicker">FIRST DERIVATIVES</b></div>
+        </div>
+        <nav class="strike-nav" aria-label="Game modes">
+          <a href="./index.html"><span>◎</span> TORUS</a>
+          <a href="./philosophy.html"><span>∴</span> SPEC</a>
+          <button type="button" id="strike-sound" aria-pressed="true"><span>◖))</span> SOUND</button>
+        </nav>
+      </header>
+
+      <section class="strike-directive" aria-live="polite">
+        <div>
+          <span class="strike-kicker">CURRENT FIRE PROTOCOL</span>
+          <h1 id="strike-title">Cross two tangent rounds to make area</h1>
+          <p id="strike-brief">Tag the same drone with ∂xP and ∂yP. Their oriented parallelogram becomes impact damage.</p>
+        </div>
+        <div class="strike-score">
+          <small>COMPUTATION SCORE</small>
+          <strong id="strike-score">0000</strong>
+          <span id="strike-combo">COMBO ×0</span>
+        </div>
+      </section>
+
+      <section class="probe-rack" aria-label="Derivative ammunition">
+        <article data-probe="x">
+          <span class="probe-key">LMB · J</span>
+          <small>FIRST ROUND</small>
+          <strong>∂<sub>x</sub>P</strong>
+          <p>records the first tangent</p>
+        </article>
+        <i aria-hidden="true">×</i>
+        <article data-probe="y">
+          <span class="probe-key">RMB · K</span>
+          <small>FIRST ROUND</small>
+          <strong>∂<sub>y</sub>P</strong>
+          <p>closes the area pair</p>
+        </article>
+        <i aria-hidden="true">→</i>
+        <article data-probe="impact">
+          <span class="probe-key">ON HIT</span>
+          <small>AREA IMPACT</small>
+          <strong>√det g = |λ̄|</strong>
+          <p>oriented area becomes damage</p>
+        </article>
+        <i aria-hidden="true">/</i>
+        <article data-probe="limit" id="limit-card" aria-disabled="true">
+          <span class="probe-key">SPACE · L</span>
+          <small>LIMIT ROUND</small>
+          <strong>∂<sub>y</sub>²P</strong>
+          <p id="limit-status">locked until rank drops</p>
+        </article>
+      </section>
+
+      <section class="strike-grid">
+        <article class="arena-panel">
+          <div class="strike-panel-head">
+            <span><i></i> LOCAL FOLD RANGE</span>
+            <small>WASD MOVE · MOUSE AIM · TWO TANGENT ROUNDS</small>
+          </div>
+          <div class="arena-shell" id="arena-shell">
+            <canvas id="strike-canvas" aria-label="Top-down differential shooter arena"></canvas>
+            <div class="rank-warning" id="rank-warning" hidden>
+              <small>FIRST-DERIVATIVE ATTACK FAILED</small>
+              <strong>0 DAMAGE · g<sup>−1</sup> LOCKED</strong>
+              <span>KEEP ∂xP TAGGED · FIRE ∂y²P</span>
+            </div>
+            <div class="wave-banner" id="wave-banner" hidden>
+              <small>DRILL ADVANCED</small>
+              <strong id="wave-banner-text">ORIENTATION FLIP</strong>
+            </div>
+          </div>
+          <div class="strike-panel-foot">
+            <span><i class="round-x"></i> ∂x ROUND</span>
+            <span><i class="round-y"></i> ∂y ROUND</span>
+            <span><i class="round-limit"></i> LIMIT ROUND</span>
+            <b id="target-coordinate">k=(0,0)</b>
+          </div>
+        </article>
+
+        <aside class="calculation-panel" aria-label="Current target calculation">
+          <div class="strike-panel-head">
+            <span><i></i> IMPACT RECEIPT</span>
+            <small>THE DAMAGE IS THE CALCULATION</small>
+          </div>
+          <div class="target-name">
+            <small>CURRENT TARGET</small>
+            <strong id="target-name">REGULAR CELL</strong>
+            <span id="target-orientation">λ̄ &gt; 0 · ORIENTATION +</span>
+          </div>
+          <div class="matrix-readout">
+            <small>THE TWO SHOTS BUILD THIS GRAM MATRIX</small>
+            <div class="matrix">
+              <span>g =</span>
+              <b>[</b>
+              <div>
+                <strong id="metric-xx">0.500</strong>
+                <strong id="metric-xy-a">0.000</strong>
+                <strong id="metric-xy-b">0.000</strong>
+                <strong id="metric-yy">0.500</strong>
+              </div>
+              <b>]</b>
+            </div>
+          </div>
+          <div class="receipt-list">
+            <div><small>ORIENTED AREA</small><strong id="target-lambda">λ̄=+0.500000</strong></div>
+            <div><small>AREA SQUARED</small><strong id="target-det">det g=2.500e−1</strong></div>
+            <div id="inverse-row"><small>INVERSE STATUS</small><strong id="target-inverse">g<sup>−1</sup> READY</strong></div>
+            <div id="limit-row"><small>LIMIT RESPONSE</small><strong id="target-limit">λ̄<sub>y</sub>=−0.000000</strong></div>
+          </div>
+          <div class="target-hp">
+            <span><small>CORE INTEGRITY</small><b id="target-hp-text">150 / 150</b></span>
+            <div><i id="target-hp-bar"></i></div>
+          </div>
+          <div class="calculation-note" id="calculation-note">
+            <b>FIRST: make both derivatives visible.</b>
+            <p>The first shot stores one tangent. The second closes their parallelogram and converts its area into impact.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="strike-controls" aria-label="Touch controls">
+        <div class="move-pad">
+          <button type="button" data-move="up">W</button>
+          <button type="button" data-move="left">A</button>
+          <button type="button" data-move="down">S</button>
+          <button type="button" data-move="right">D</button>
+        </div>
+        <div class="fire-pad">
+          <button type="button" data-fire="x">∂x</button>
+          <button type="button" data-fire="y">∂y</button>
+          <button type="button" data-fire="limit" id="touch-limit" disabled>∂y²</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="strike-start" id="strike-start">
+      <div class="start-orbit" aria-hidden="true"><i>∂x</i><i>∂y</i><i>∂²</i></div>
+      <p>THE ONE-DAY FOLD DRILL // MADE PLAYABLE</p>
+      <h2>FIRE TWO DERIVATIVES.<br><em>MAKE AREA HIT.</em></h2>
+      <span>At the fold, the first attack must fail. That failure unlocks the derivative you actually need.</span>
+      <button type="button" id="strike-start-button"><b>ENTER THE LOCAL CALCULATION</b><small>CLICK · ENTER</small></button>
+      <a href="./index.html">KEEP THE TORUS GAME →</a>
+    </div>
+
+    <div class="strike-complete" id="strike-complete" hidden>
+      <small>LOCAL DRILL COMPLETE</small>
+      <h2>THE INVERSE FAILED.<br>THE LIMIT ROUND LANDED.</h2>
+      <p>You made (∂xP, ∂yP) produce area damage, watched rank drop at (k=(π,π/3)), then used (∂y²P) to recover the fold response.</p>
+      <div><button type="button" id="strike-restart">RUN IT AGAIN</button><a href="./index.html">RETURN TO TORUS</a></div>
+    </div>
+
+    <script type="module" src="./src/shooter.js"></script>
+  </body>
+</html>

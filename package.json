@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Move one BZ point, watch its Bloch image, and cross a signed-area fold.",
+  "description": "Explore a signed-area torus map, then fight through its local derivatives in a fold shooter.",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "test": "node --test",

@@ -1032,6 +1032,20 @@ canvas {
   letter-spacing: 0.16em;
 }
 
+.start-mode-link {
+  margin-top: 16px;
+  color: var(--amber);
+  font-size: 8px;
+  letter-spacing: 0.13em;
+  text-decoration: none;
+}
+
+.start-mode-link:hover,
+.start-mode-link:focus-visible {
+  color: var(--cyan);
+  outline: none;
+}
+
 .pause-screen {
   z-index: 39;
   align-content: center;
