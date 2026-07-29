@@ -9,6 +9,7 @@ import {
   clamp,
   createMissionState,
   cuspPoints,
+  fieldEffectAt,
   findSourcesForState,
   foldAmplitude,
   foldBranchesAtU,
@@ -249,6 +250,37 @@ test("documented cusp points satisfy the cusp rather than ordinary-fold conditio
   assert.ok(Math.abs(amplitudeU) > 1);
 });
 
+test("field feedback distinguishes positive, fold, reversed, and cusp effects", () => {
+  const ordinaryFold = {
+    u: 0,
+    v: foldBranchesAtU(0)[0],
+  };
+  const cusp = cuspPoints()[0];
+
+  const positive = fieldEffectAt({ u: 0, v: 0.1 });
+  const fold = fieldEffectAt(ordinaryFold);
+  const reversed = fieldEffectAt({ u: 0, v: 0.5 });
+  const cuspEffect = fieldEffectAt(cusp);
+
+  assert.equal(positive.kind, "positive");
+  assert.equal(positive.localVResponse, "preserved");
+  assert.equal(positive.packetSign, 1);
+
+  assert.equal(fold.kind, "fold");
+  assert.ok(Math.abs(fold.jacobian) < 1e-12);
+  assert.equal(fold.localVResponse, "compressed");
+  assert.equal(fold.packetSign, null);
+
+  assert.equal(reversed.kind, "reversed");
+  assert.equal(reversed.localVResponse, "reversed");
+  assert.equal(reversed.packetSign, -1);
+
+  assert.equal(cuspEffect.kind, "cusp");
+  assert.ok(Math.abs(cuspEffect.jacobian) < 1e-12);
+  assert.equal(cuspEffect.causesDamage, false);
+  assert.equal(cuspEffect.isCollectible, false);
+});
+
 test("every philosophy claim anchor resolves to one exact source substring", () => {
   const root = resolve(import.meta.dirname, "..");
   const html = readFileSync(resolve(root, "philosophy.html"), "utf8");
@@ -308,4 +340,51 @@ test("the philosophy page maps every hand-calculation object to an explicit game
       `philosophy should expose the calculation step: ${requiredCalculation}`,
     );
   }
+});
+
+test("the specification uses a neutral voice and exposes the amber geometry contract", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const philosophy = readFileSync(resolve(root, "philosophy.html"), "utf8");
+  const gameHtml = readFileSync(resolve(root, "index.html"), "utf8");
+  const renderer = readFileSync(resolve(root, "src", "main.js"), "utf8");
+
+  for (const requiredText of [
+    "<title>Quantum Fold — Mapping Degree Game Specification</title>",
+    "게임 화면의 색과 형상이 뜻하는 것",
+    "Degree 적분과 화면 요소의 대응",
+    "연속 map mechanic과 authored packet charge",
+    "별도 damage·pickup·score 효과는 없다.",
+  ]) {
+    assert.ok(philosophy.includes(requiredText), `specification should include: ${requiredText}`);
+  }
+
+  for (const forbiddenText of [
+    "Why Quantum Fold",
+    "먼저 결론부터",
+    "원 논문",
+    "최초 제약",
+    "제가 노린",
+    "질문에 대한 직접 답",
+    "설득의 조건",
+    "게임적으로 속인",
+    "논문 독자",
+    "이 해석을 반증",
+    "PLAY THE ARGUMENT",
+  ]) {
+    assert.equal(
+      philosophy.includes(forbiddenText),
+      false,
+      `specification should not contain author-process framing: ${forbiddenText}`,
+    );
+  }
+
+  for (const gameContractText of [
+    "CUSP POINT · J≈0",
+    "FOLD ENDPOINT · NO DAMAGE · NO PICKUP",
+    "FOLD · J=0",
+  ]) {
+    assert.ok(gameHtml.includes(gameContractText), `game HUD should include: ${gameContractText}`);
+  }
+  assert.ok(renderer.includes("LOCAL v: SOURCE ↑ → IMAGE ↓"));
+  assert.ok(renderer.includes("NO DAMAGE · NO PICKUP · GEOMETRY MARKER"));
 });

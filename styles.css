@@ -14,6 +14,7 @@
   --amber-rgb: 255, 201, 107;
   --blue: #67a8ff;
   --negative: #ff6f91;
+  --negative-rgb: 255, 111, 145;
   --page-pad: clamp(16px, 2.4vw, 42px);
   font-family: "IBM Plex Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   font-synthesis: none;
@@ -466,10 +467,71 @@ canvas {
   transform: translateY(-50%);
 }
 
+.field-effect-card {
+  position: absolute;
+  bottom: 13px;
+  left: 14px;
+  z-index: 3;
+  width: min(280px, calc(100% - 28px));
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--cyan-rgb), 0.34);
+  background: rgba(3, 12, 18, 0.88);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.field-effect-card small,
+.field-effect-card b,
+.field-effect-card span {
+  display: block;
+}
+
+.field-effect-card small {
+  color: var(--cyan);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+
+.field-effect-card b {
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.field-effect-card span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 7px;
+  letter-spacing: 0.06em;
+}
+
+.field-effect-card[data-kind="fold"],
+.field-effect-card[data-kind="cusp"] {
+  border-color: rgba(var(--amber-rgb), 0.62);
+}
+
+.field-effect-card[data-kind="fold"] small,
+.field-effect-card[data-kind="cusp"] small {
+  color: var(--amber);
+}
+
+.field-effect-card[data-kind="reversed"] {
+  border-color: rgba(var(--negative-rgb), 0.58);
+}
+
+.field-effect-card[data-kind="reversed"] small {
+  color: var(--negative);
+}
+
 .cusp-alert {
   position: absolute;
   top: 13px;
   left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 10px;
   transform: translateX(-50%);
   border: 1px solid rgba(var(--amber-rgb), 0.55);
@@ -479,6 +541,31 @@ canvas {
   font-size: 7px;
   letter-spacing: 0.14em;
   animation: alert-pulse 0.7s ease-in-out infinite alternate;
+}
+
+.cusp-alert[hidden] {
+  display: none;
+}
+
+.cusp-alert > span {
+  font-size: 10px;
+}
+
+.cusp-alert b,
+.cusp-alert small {
+  display: block;
+}
+
+.cusp-alert b {
+  font-size: 7px;
+  font-weight: 500;
+}
+
+.cusp-alert small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 6px;
+  letter-spacing: 0.08em;
 }
 
 .surface-readout {

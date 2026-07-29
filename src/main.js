@@ -44,6 +44,10 @@ const ui = {
   rawMeter: document.querySelector("#raw-meter"),
   signedMeter: document.querySelector("#signed-meter"),
   coverageMessage: document.querySelector("#coverage-message"),
+  fieldEffectCard: document.querySelector("#field-effect-card"),
+  fieldEffectName: document.querySelector("#field-effect-name"),
+  fieldEffectAction: document.querySelector("#field-effect-action"),
+  fieldEffectResult: document.querySelector("#field-effect-result"),
   cuspAlert: document.querySelector("#cusp-alert"),
   startScreen: document.querySelector("#start-screen"),
   startButton: document.querySelector("#start-button"),
@@ -66,6 +70,29 @@ const ui = {
   soundIcon: document.querySelector("#sound-icon"),
   cameraButton: document.querySelector("#camera-button"),
   pulseButton: document.querySelector("#pulse-button"),
+};
+
+const FIELD_EFFECT_COPY = {
+  positive: {
+    name: "POSITIVE REGION",
+    action: "LOCAL v: SOURCE ↑ → IMAGE ↑",
+    result: "GATE PACKET COLLECTED HERE: +1",
+  },
+  fold: {
+    name: "FOLD LINE",
+    action: "LOCAL v RESPONSE → 0",
+    result: "CROSS THE LINE: THE ORIENTATION SIGN FLIPS",
+  },
+  reversed: {
+    name: "REVERSED REGION",
+    action: "LOCAL v: SOURCE ↑ → IMAGE ↓",
+    result: "GATE PACKET COLLECTED HERE: −1",
+  },
+  cusp: {
+    name: "CUSP POINT",
+    action: "TWO FOLD LINES MEET · LOCAL RESPONSE → 0",
+    result: "NO DAMAGE · NO PICKUP · GEOMETRY MARKER",
+  },
 };
 
 const domainCanvas = document.querySelector("#domain-canvas");
@@ -156,6 +183,12 @@ class SoundField {
         type: "triangle",
         volume: 0.09,
       });
+    } else if (event.type === "field") {
+      if (event.effect.kind === "cusp") {
+        this.chord([246.94, 369.99, 739.99], 0.035);
+      } else {
+        this.tone(290, 0.16, { slide: 145, type: "triangle", volume: 0.075 });
+      }
     } else if (event.type === "wrap") {
       this.tone(330, 0.18, { slide: 660, type: "sine", volume: 0.08 });
     } else if (event.type === "pulse") {
@@ -233,7 +266,7 @@ function drawFoldDomain(context, width, height, time) {
     const x = pad + (index / samples) * usableWidth;
     const y1 = pad + branches[0] * usableHeight;
     const y2 = pad + branches[1] * usableHeight;
-    context.fillStyle = "rgba(255, 111, 145, 0.075)";
+    context.fillStyle = "rgba(255, 111, 145, 0.115)";
     context.fillRect(x, y1, usableWidth / samples + 1, y2 - y1);
   }
 
@@ -262,21 +295,39 @@ function drawFoldDomain(context, width, height, time) {
     context.stroke();
   }
 
+  context.save();
+  context.fillStyle = "rgba(255, 111, 145, 0.78)";
+  context.font = '7px "IBM Plex Mono", monospace';
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  for (const u of [0.04, 1 / 3, 2 / 3]) {
+    const point = domainPoint({ u, v: 0.5 }, width, height, pad);
+    context.fillText("J < 0 · REVERSED", point.x, point.y);
+  }
+  context.restore();
+
   for (const cusp of cuspPoints()) {
     const point = domainPoint(cusp, width, height, pad);
     const pulse = 1 + 0.18 * Math.sin(time * 0.006 + cusp.u * TAU);
     context.save();
     context.translate(point.x, point.y);
-    context.rotate(Math.PI / 4);
     context.strokeStyle = "rgba(255, 201, 107, 0.95)";
-    context.fillStyle = "rgba(255, 201, 107, 0.16)";
+    context.fillStyle = "rgba(255, 201, 107, 0.2)";
     context.lineWidth = 1;
     context.shadowColor = "#ffc96b";
     context.shadowBlur = 13;
     context.beginPath();
-    context.rect(-5 * pulse, -5 * pulse, 10 * pulse, 10 * pulse);
+    context.moveTo(0, -6 * pulse);
+    context.lineTo(6 * pulse, 5 * pulse);
+    context.lineTo(-6 * pulse, 5 * pulse);
+    context.closePath();
     context.fill();
     context.stroke();
+    context.shadowBlur = 0;
+    context.fillStyle = "rgba(255, 201, 107, 0.86)";
+    context.font = '6px "IBM Plex Mono", monospace';
+    context.textAlign = cusp.u > 0.86 ? "right" : "left";
+    context.fillText("CUSP", cusp.u > 0.86 ? -9 : 9, -8);
     context.restore();
   }
   context.restore();
@@ -790,6 +841,14 @@ function updateTelemetry() {
       ? "STRETCHED"
       : "STEADY";
 
+  const fieldEffect = game.fieldEffect;
+  const fieldCopy = FIELD_EFFECT_COPY[fieldEffect.kind];
+  ui.fieldEffectCard.dataset.kind = fieldEffect.kind;
+  ui.fieldEffectName.textContent = `${fieldCopy.name} · J ${formatSigned(fieldEffect.jacobian, 2)}`;
+  ui.fieldEffectAction.textContent = fieldCopy.action;
+  ui.fieldEffectResult.textContent = fieldCopy.result;
+  ui.cuspAlert.hidden = fieldEffect.kind !== "cusp";
+
   const charge = chargeFromSignedArea(game.coverage.signedArea);
   ui.chargeValue.textContent = formatSigned(charge);
   ui.chargeTarget.textContent = mission.targetCharge === null
@@ -826,7 +885,6 @@ function updateTelemetry() {
   } else {
     ui.coverageMessage.textContent = "Every captured layer currently reinforces.";
   }
-  ui.cuspAlert.hidden = game.cuspRisk >= 0.068;
 }
 
 const completionCopy = {

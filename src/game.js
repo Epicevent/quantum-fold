@@ -142,6 +142,60 @@ export function nearestCuspDistance(source) {
   );
 }
 
+export function fieldEffectAt(source, {
+  foldThreshold = 0.12,
+  cuspRadius = 0.055,
+} = {}) {
+  const jacobian = orientationValue(source.u, source.v);
+  const cuspDistance = nearestCuspDistance(source);
+
+  if (cuspDistance < cuspRadius) {
+    return {
+      kind: "cusp",
+      jacobian,
+      sign: Math.sign(jacobian),
+      localVResponse: "compressed",
+      packetSign: null,
+      causesDamage: false,
+      isCollectible: false,
+    };
+  }
+
+  if (Math.abs(jacobian) < foldThreshold) {
+    return {
+      kind: "fold",
+      jacobian,
+      sign: Math.sign(jacobian),
+      localVResponse: "compressed",
+      packetSign: null,
+      causesDamage: false,
+      isCollectible: false,
+    };
+  }
+
+  if (jacobian < 0) {
+    return {
+      kind: "reversed",
+      jacobian,
+      sign: -1,
+      localVResponse: "reversed",
+      packetSign: -1,
+      causesDamage: false,
+      isCollectible: false,
+    };
+  }
+
+  return {
+    kind: "positive",
+    jacobian,
+    sign: 1,
+    localVResponse: "preserved",
+    packetSign: 1,
+    causesDamage: false,
+    isCollectible: false,
+  };
+}
+
 export function stepSource(source, input, dt, options = {}) {
   const speed = options.speed ?? DEFAULT_SPEED;
   const acceleration = options.acceleration ?? DEFAULT_ACCELERATION;
@@ -412,6 +466,7 @@ export function createMissionState(index = 0, missions = makeMissions()) {
     events: [],
     pulse: 0,
     cuspRisk: nearestCuspDistance(source),
+    fieldEffect: fieldEffectAt(source),
     wrapCount: 0,
     pathClosed: !mission.home,
     lastTrailAt: 0,
@@ -502,6 +557,7 @@ export function stepMission(state, input, dt = FIXED_STEP) {
   if (!state.started) return state;
 
   const previousOrientation = state.orientation;
+  const previousFieldKind = state.fieldEffect.kind;
   const nextSource = stepSource(state.source, input, dt);
   state.source = nextSource;
   state.elapsed += dt;
@@ -522,6 +578,18 @@ export function stepMission(state, input, dt = FIXED_STEP) {
   state.orientation = orientationAt(state.source.u, state.source.v);
   state.multiplicity = sourceMultiplicity(state.source);
   state.cuspRisk = nearestCuspDistance(state.source);
+  state.fieldEffect = fieldEffectAt(state.source);
+
+  if (
+    state.fieldEffect.kind !== previousFieldKind
+    && ["fold", "cusp"].includes(state.fieldEffect.kind)
+  ) {
+    state.events.push({
+      type: "field",
+      effect: state.fieldEffect,
+      elapsed: state.elapsed,
+    });
+  }
 
   if (state.orientation !== previousOrientation) {
     state.events.push({
@@ -572,6 +640,7 @@ export function missionEvidence(state) {
     elapsed: state.elapsed,
     orientation: state.orientation,
     multiplicity: state.multiplicity,
+    fieldEffect: state.fieldEffect,
     rawArea: state.coverage.rawArea,
     signedArea: state.coverage.signedArea,
     charge: chargeFromSignedArea(state.coverage.signedArea),

@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#071019">
     <meta
       name="description"
-      content="Quantum Fold의 수학적 설계 논증: winding이 아니라 fold map의 local degree를 플레이로 옮긴 이유와 구현의 한계."
+      content="Quantum Fold의 구현 명세: torus fold map, mapping degree, 화면 기호, mission mechanic, authored packet charge의 정확한 대응."
     >
-    <title>Why Quantum Fold — Degree, not winding</title>
+    <title>Quantum Fold — Mapping Degree Game Specification</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./philosophy.css">
   </head>
@@ -19,36 +19,87 @@
       <a class="back-link" href="./index.html"><span aria-hidden="true">←</span> GAME</a>
       <div class="brand-lockup">
         <span class="brand-orbit" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><b>QUANTUM FOLD</b><small>DESIGN AUDIT // 01</small></span>
+        <span><b>QUANTUM FOLD</b><small>IMPLEMENTATION SPEC // 01</small></span>
       </div>
-      <span class="header-tag">DEGREE, NOT WINDING</span>
+      <span class="header-tag">TORUS MAP / SIGNED DEGREE</span>
     </header>
 
     <main>
       <section class="hero">
-        <p class="eyebrow">먼저 결론부터</p>
-        <h1>이 게임은 경로의 winding을 세려던 게임이 아니다.</h1>
+        <p class="eyebrow">GAME DESIGN TARGET</p>
+        <h1>Fold map의 signed multiplicity를 조작 가능한 mission으로 옮긴 게임</h1>
         <p class="hero-thesis">
-          의도한 핵심은 <strong>하나의 보이는 상태점에 붙은 여러 원상의 국소 차수(local degree)가
-          부호와 함께 합쳐져 전역 정수 degree를 만든다</strong>는 사실을, 조종감과 실패 기록으로 먼저
-          체험시키는 것이었다.
+          플레이어는 source torus의 점 <code>x=(u,v)</code>를 조종하고 state torus의
+          <code>F(x)</code>를 동시에 본다. mission의 수학적 대상은
+          <strong>여러 원상의 local degree가 부호와 함께 합쳐져 만드는 mapping degree</strong>다.
         </p>
         <div class="scope-note">
-          <b>해석 범위</b>
+          <b>MECHANIC SEQUENCE</b>
           <p>
-            이 문서는 원 논문을 읽고 만든 해설이 아니다. 최초 제약대로 <code>GAME_PRINCIPLES.md</code>와
-            실제 구현만을 역으로 감사한 설계 논증이다. 따라서 아래 주장은 “논문과 일치한다”가 아니라
-            “현재 게임이 정확히 어떤 수학을 구현했고 어디서 단순화했는가”에 대한 반박 가능한 명세다.
+            periodic motion → fold crossing → 1-to-3 provenance → signed cancellation → integer packet charge.
+            map과 Jacobian은 연속 모델에서 직접 계산한다. mission charge는 연속 적분이 아니라
+            authored coverage packet의 부호 합이다.
           </p>
+        </div>
+      </section>
+
+      <section class="screen-contract-section" aria-labelledby="screen-contract-title">
+        <div class="section-heading">
+          <span>01</span>
+          <div>
+            <p class="eyebrow">SCREEN SYMBOL → MATH → EFFECT</p>
+            <h2 id="screen-contract-title">게임 화면의 색과 형상이 뜻하는 것</h2>
+          </div>
+        </div>
+
+        <div class="screen-contract-grid">
+          <article data-source="src/main.js" data-quote="function drawDomainPlayer(context, width, height, time) {">
+            <i class="contract-symbol source-symbol" aria-hidden="true"></i>
+            <small>CYAN SOURCE</small>
+            <h3><code>x=(u,v)</code></h3>
+            <p>왼쪽 DOMAIN에서 직접 조종하는 점. 모든 map·Jacobian·gate sign 계산의 입력이다.</p>
+          </article>
+          <article data-source="src/main.js" data-quote="function drawMappedPlayer(context, width, height, time) {">
+            <i class="contract-symbol image-symbol" aria-hidden="true"></i>
+            <small>CORAL IMAGE</small>
+            <h3><code>F(x)=(u′,v′)</code></h3>
+            <p>오른쪽 STATE SURFACE의 대응점. source의 동일한 움직임이 local Jacobian에 따라 보존·압축·반전된다.</p>
+          </article>
+          <article data-source="src/game.js" data-quote="packetSign: -1,">
+            <i class="contract-symbol reversed-symbol" aria-hidden="true"></i>
+            <small>CORAL REGION</small>
+            <h3><code>J&lt;0</code></h3>
+            <p>reversed layer. local <code>v</code>-motion은 <code>SOURCE ↑ → IMAGE ↓</code>. 이 위치의 gate packet은 −1이다.</p>
+          </article>
+          <article data-source="src/game.js" data-quote="foldThreshold = 0.12,">
+            <i class="contract-symbol fold-symbol" aria-hidden="true"></i>
+            <small>AMBER LINE</small>
+            <h3><code>J=0</code> · FOLD</h3>
+            <p>local <code>v</code>-response가 0으로 압축되는 경계. 선을 통과하면 orientation sign이 바뀐다.</p>
+          </article>
+          <article data-source="src/game.js" data-quote="cuspRadius = 0.055,">
+            <i class="contract-symbol cusp-symbol" aria-hidden="true"></i>
+            <small>AMBER VERTEX</small>
+            <h3><code>A(u)=1, v=1/2</code> · CUSP</h3>
+            <p>두 fold line이 만나는 endpoint. mapped response가 강하게 압축된다. 별도 damage·pickup·score 효과는 없다.</p>
+          </article>
+        </div>
+
+        <div class="entry-sequence" aria-label="fold line crossing effect">
+          <div><small>POSITIVE REGION</small><b>J &gt; 0</b><span>SOURCE ↑ → IMAGE ↑ · PACKET +1</span></div>
+          <i aria-hidden="true">→</i>
+          <div class="boundary"><small>FOLD LINE</small><b>J = 0</b><span>LOCAL RESPONSE → 0</span></div>
+          <i aria-hidden="true">→</i>
+          <div class="reversed"><small>REVERSED REGION</small><b>J &lt; 0</b><span>SOURCE ↑ → IMAGE ↓ · PACKET −1</span></div>
         </div>
       </section>
 
       <section class="worked-example" aria-labelledby="example-title">
         <div class="section-heading">
-          <span>01</span>
+          <span>02</span>
           <div>
-            <p class="eyebrow">현상을 먼저 본다</p>
-            <h2 id="example-title">한 상태점에 원상이 셋인데, 합은 왜 1인가?</h2>
+            <p class="eyebrow">REGULAR-VALUE DEGREE</p>
+            <h2 id="example-title">정칙값의 세 원상과 signed multiplicity</h2>
           </div>
         </div>
 
@@ -123,10 +174,10 @@
 
       <section class="derivation" aria-labelledby="model-title">
         <div class="section-heading">
-          <span>02</span>
+          <span>03</span>
           <div>
-            <p class="eyebrow">모델과 convention lock</p>
-            <h2 id="model-title">게임이 실제로 쓰는 map</h2>
+            <p class="eyebrow">MATHEMATICAL MODEL</p>
+            <h2 id="model-title">구현된 torus fold map</h2>
           </div>
         </div>
 
@@ -194,16 +245,16 @@
 
       <section class="correspondence-section" aria-labelledby="correspondence-title">
         <div class="section-heading">
-          <span>03</span>
+          <span>04</span>
           <div>
-            <p class="eyebrow">손계산 ↔ 게임 대응표</p>
-            <h2 id="correspondence-title">무엇을 적분했고, 그것이 화면의 무엇인가</h2>
+            <p class="eyebrow">PULLBACK INTEGRAL ↔ GAME STATE</p>
+            <h2 id="correspondence-title">Degree 적분과 화면 요소의 대응</h2>
           </div>
         </div>
 
         <p class="integral-answer">
-          적분한 것은 플레이어 궤적이 아니다. <strong>source torus의 모든 미소 면적
-          <code>du∧dv</code>가 map을 지나며 만든 signed state-area</strong>를 적분했다.
+          Degree integral은 <strong>source torus의 모든 미소 면적 <code>du∧dv</code>가
+          map을 지나며 만드는 signed state-area</strong>를 합한다.
         </p>
 
         <div class="integral-lock">
@@ -238,7 +289,7 @@
           <li>
             <span>3</span>
             <div>
-              <b>왜 A′(u) 항이 사라지는지 적는다.</b>
+              <b>A′(u) 항의 소거.</b>
               <p><code>F*ω = du ∧ {[A′(u)sin(2πv)/(2π)]du + [1+A(u)cos(2πv)]dv}</code></p>
               <p><code>du∧du = 0</code>이므로 첫 항만이 아니라 <em>첫 항이 정확히 소거</em>된다.</p>
             </div>
@@ -260,18 +311,18 @@
         </ol>
 
         <div class="dimension-warning">
-          <b>경로를 적분한 것이 아니라는 결정적 검사</b>
+          <b>PLAYER PATH의 TYPE</b>
           <p>
             플레이어 경로는 <code>γ:S¹→T²<sub>source</sub></code>인 1차원 곡선이다.
             2-form은 1차원에서 사라지므로 <code>γ*(F*ω)=0</code>이다.
-            화면의 trail은 적분영역이 아니라, 어느 source gate를 방문했는지를 결정하는 조종 기록이다.
+            화면의 trail은 source gate 방문 순서를 결정하는 controller 기록이다.
           </p>
         </div>
 
         <div class="correspondence-table table-wrap">
           <table>
             <thead>
-              <tr><th>손계산의 대상</th><th>수학적 의미</th><th>게임에서 보이는 것</th><th>대응 판정</th></tr>
+              <tr><th>손계산의 대상</th><th>수학적 의미</th><th>게임에서 보이는 것</th><th>구현 수준</th></tr>
             </thead>
             <tbody>
               <tr data-calculation-object="source-point" data-game-status="exact" data-source="src/game.js" data-quote="source: { u: source.u, v: source.v },">
@@ -362,7 +413,7 @@
         </div>
 
         <div class="closest-correspondence">
-          <p class="eyebrow">게임에서 손계산과 가장 가까운 장면</p>
+          <p class="eyebrow">MISSION 03 · REGULAR-VALUE FORMULA</p>
           <p>
             MISSION 03의 흰 state beacon이 정칙값 <code>y</code>, 세 echo가
             <code>x∈F⁻¹(y)</code>, 각 echo의 ±가 <code>sign det DF<sub>x</sub></code>다.
@@ -374,10 +425,10 @@
 
       <section class="degree-section" aria-labelledby="degree-title">
         <div class="section-heading">
-          <span>04</span>
+          <span>05</span>
           <div>
-            <p class="eyebrow">국소의 혼란에서 전역 정수로</p>
-            <h2 id="degree-title">제가 노린 불변량은 mapping degree다</h2>
+            <p class="eyebrow">GLOBAL MISSION QUANTITY</p>
+            <h2 id="degree-title">Mapping degree</h2>
           </div>
         </div>
 
@@ -414,66 +465,18 @@
         </div>
       </section>
 
-      <section class="winding-section" aria-labelledby="winding-title">
-        <div class="section-heading">
-          <span>05</span>
-          <div>
-            <p class="eyebrow">질문에 대한 직접 답</p>
-            <h2 id="winding-title">그래서 winding form을 정의하고 싶었던 건가?</h2>
-          </div>
-        </div>
-
-        <p class="direct-answer"><strong>아니다.</strong> 적어도 현재 코드의 charge는 winding integral이 아니다.</p>
-
-        <div class="comparison-table">
-          <table>
-            <thead>
-              <tr><th>구분</th><th>winding / H₁ 정보</th><th>이 게임이 노린 degree / H₂ 정보</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th>입력</th>
-                <td>닫힌 경로 γ:S¹→T²</td>
-                <td>전체 map F:T²→T²</td>
-              </tr>
-              <tr>
-                <th>대표 계산</th>
-                <td>(∮γ du, ∮γ dv) ∈ ℤ²</td>
-                <td>∫T² F*(du′∧dv′) ∈ ℤ</td>
-              </tr>
-              <tr>
-                <th>무엇을 센다</th>
-                <td>경로가 각 주기 방향을 몇 번 도는가</td>
-                <td>state의 정칙값이 orientation과 함께 몇 번 덮이는가</td>
-              </tr>
-              <tr>
-                <th>현재 코드</th>
-                <td><strong>정의하지 않음</strong></td>
-                <td>local sign 구조는 구현, 전역 적분은 gate 합으로 단순화</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p class="winding-caveat">
-          플레이어 경로가 닫히고 torus의 seam을 넘기 때문에 winding으로 읽고 싶어지는 것은 자연스럽다.
-          그러나 그 경로는 <em>map을 탐색하는 probe</em>이지 charge의 정의역이 아니다. 논문에서
-          “winding form”을 별도의 뜻으로 정의한다면, 그 정의와의 대응은 이 문서만으로 주장하지 않는다.
-        </p>
-      </section>
-
       <section class="honesty-section" aria-labelledby="honesty-title">
         <div class="section-heading">
           <span>06</span>
           <div>
-            <p class="eyebrow">설득의 조건은 한계까지 말하는 것</p>
-            <h2 id="honesty-title">정확히 구현한 것과 게임적으로 속인 것</h2>
+            <p class="eyebrow">IMPLEMENTATION BOUNDARY</p>
+            <h2 id="honesty-title">연속 map mechanic과 authored packet charge</h2>
           </div>
         </div>
 
         <div class="honesty-grid">
           <article class="kept">
-            <h3>수학적 관계를 보존한 부분</h3>
+            <h3>연속 map에서 직접 계산되는 값</h3>
             <ul>
               <li data-source="src/game.js" data-quote="export function wrap01(value) {"><b>주기성:</b> source 좌표는 실제로 mod 1로 wrap한다.</li>
               <li data-source="src/game.js" data-quote="export function orientationAt(u, v) {"><b>fold sign:</b> 방향은 <code>sign(det DF)</code>에서 직접 나온다.</li>
@@ -483,74 +486,31 @@
             </ul>
           </article>
           <article class="cut" data-source="src/game.js" data-quote="export class CoverageLedger {">
-            <h3>게임을 위해 단순화한 부분</h3>
+            <h3>mission configuration으로 지정되는 값</h3>
             <ul>
-              <li><b>“area”의 단위:</b> 연속 면적이 아니라 수집한 coverage packet의 가중치다.</li>
-              <li><b>charge:</b> 현재는 <code>Qgame = Σk εk ak / q</code>인 gate 합이다.</li>
-              <li data-source="src/game.js" data-quote="state.pathClosed = periodicDistance(state.source, state.mission.home)"><b>닫힌 path:</b> 적분 정리의 전제가 아니라 마지막 mission의 완료 조건이다.</li>
-              <li data-source="src/game.js" data-quote="targetCharge: 2,"><b>정수 안정성:</b> 수치 적분의 수렴 결과가 아니라 저자가 배치한 정수 packet의 결과다.</li>
+              <li><b>“area” 단위:</b> 수집한 coverage packet의 authored weight.</li>
+              <li><b>charge:</b> <code>Qgame = Σk εk ak / q</code>로 정의된 gate packet 합.</li>
+              <li data-source="src/game.js" data-quote="state.pathClosed = periodicDistance(state.source, state.mission.home)"><b>닫힌 path:</b> 마지막 mission의 route-completion 조건.</li>
+              <li data-source="src/game.js" data-quote="targetCharge: 2,"><b>정수 target:</b> mission configuration에 배치된 packet 부호 합.</li>
             </ul>
           </article>
         </div>
 
         <div class="verdict">
-          <p class="eyebrow">따라서 현재 게임에 내릴 수 있는 정확한 판정</p>
+          <p class="eyebrow">GAME DESIGN SUMMARY</p>
           <blockquote>
-            Quantum Fold는 <strong>degree를 계산하는 시뮬레이터</strong>는 아니다.
-            대신 degree가 왜 raw multiplicity가 아니라 signed multiplicity여야 하는지를
-            실제 degree-1 cusp/fold map 위에서 가르치는 <strong>조작 가능한 비유</strong>다.
+            Quantum Fold는 degree-1 cusp/fold map 위에서 source와 image를 함께 조종하고,
+            <strong>local sign, 1-to-3 provenance, signed cancellation</strong>을 순서대로 수행하는 arcade game이다.
+            mission score의 계산 수준은 <strong>authored coverage packet의 signed sum</strong>이다.
           </blockquote>
         </div>
       </section>
 
-      <section class="upgrade-section" aria-labelledby="upgrade-title">
-        <div class="section-heading">
-          <span>07</span>
-          <div>
-            <p class="eyebrow">논문 독자의 기준으로 더 엄밀하게 만들려면</p>
-            <h2 id="upgrade-title">gate 합을 실제 discrete degree estimator로 바꿔야 한다</h2>
-          </div>
-        </div>
-
-        <div class="upgrade-flow" aria-label="엄밀한 charge 계산으로 바꾸는 네 단계">
-          <div><span>1</span><b>target cell 분할</b><p>state torus를 작은 oriented cell로 나눈다.</p></div>
-          <i aria-hidden="true">→</i>
-          <div><span>2</span><b>모든 원상 탐색</b><p>각 regular sample의 F⁻¹(y)를 찾는다.</p></div>
-          <i aria-hidden="true">→</i>
-          <div><span>3</span><b>local sign 합</b><p>mF(y)=Σ sign det DF를 기록한다.</p></div>
-          <i aria-hidden="true">→</i>
-          <div><span>4</span><b>mesh 수렴 확인</b><p>fold/cusp 근처를 refine해 Qh→deg F를 보인다.</p></div>
-        </div>
-
-        <p class="display-formula final-formula">
-          Q<sub>h</sub> = [Σ<sub>cells C</sub> area(C) · m<sub>F</sub>(y<sub>C</sub>)] / area(T²)
-          &nbsp; ⟶ &nbsp; deg F
-        </p>
-        <p class="upgrade-note">
-          이 교체를 해야 “signed area”와 “integer completion”이 단순한 mission authoring이 아니라
-          실제 수치 위상 불변량의 근사가 된다. 현재 게임의 다음 수학적 개선점은 바로 여기다.
-        </p>
-      </section>
-
-      <section class="falsification-section">
-        <p class="eyebrow">이 해석을 반증하는 방법</p>
-        <h2>독자는 다음 네 가지를 코드에서 깨뜨리면 된다.</h2>
-        <ol>
-          <li>정칙값의 원상 부호 합이 1이 아닌 예를 찾는다.</li>
-          <li>fold를 넘지 않았는데 local sign이 바뀌는 경로를 찾는다.</li>
-          <li>camera 회전만으로 charge가 달라지는 입력을 찾는다.</li>
-          <li>같은 fixed-step 입력으로 서로 다른 결과가 나오는 실행을 찾는다.</li>
-        </ol>
-        <p>
-          이 중 하나라도 성립하면 위의 설계 논증은 실패한다. 그래서 문서의 핵심 수치와 source 인용은
-          deterministic test가 다시 계산한다.
-        </p>
-      </section>
     </main>
 
     <footer>
-      <a href="./index.html">PLAY THE ARGUMENT <span aria-hidden="true">→</span></a>
-      <p>Model claim: degree-1 torus fold map. Game claim: signed-multiplicity pedagogy. Paper correspondence: not asserted.</p>
+      <a href="./index.html">PLAY QUANTUM FOLD <span aria-hidden="true">→</span></a>
+      <p>MODEL: DEGREE-1 TORUS FOLD MAP · EXACT MECHANICS: F, sign J, multiplicity · SCORE: AUTHORED SIGNED PACKETS</p>
     </footer>
 
     <script type="module" src="./src/philosophy.js"></script>

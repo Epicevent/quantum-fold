@@ -36,9 +36,9 @@
         </div>
 
         <div class="top-actions">
-          <a class="icon-button" id="philosophy-link" href="./philosophy.html" title="Read the mathematical design argument">
+          <a class="icon-button" id="philosophy-link" href="./philosophy.html" title="Read the mapping-degree game specification">
             <span aria-hidden="true">∴</span>
-            <span class="button-label">WHY</span>
+            <span class="button-label">SPEC</span>
           </a>
           <button class="icon-button" id="camera-button" type="button" title="Rotate representation (C)">
             <span aria-hidden="true">◒</span>
@@ -110,15 +110,23 @@
             <span class="edge-label edge-bottom">WRAPS NORTH</span>
             <span class="edge-label edge-left">WRAPS EAST</span>
             <span class="edge-label edge-right">WRAPS WEST</span>
+            <div class="field-effect-card" id="field-effect-card" data-kind="positive" aria-live="polite">
+              <small id="field-effect-name">POSITIVE REGION · J &gt; 0</small>
+              <b id="field-effect-action">LOCAL v: SOURCE ↑ → IMAGE ↑</b>
+              <span id="field-effect-result">GATE PACKET HERE: +1</span>
+            </div>
             <div class="cusp-alert" id="cusp-alert" hidden>
-              <span>▲</span>
-              CUSP COMPRESSION
+              <span>◆</span>
+              <div>
+                <b>CUSP POINT · J≈0</b>
+                <small>FOLD ENDPOINT · NO DAMAGE · NO PICKUP</small>
+              </div>
             </div>
           </div>
           <div class="panel-footer">
             <span><i class="legend-source"></i> SOURCE</span>
-            <span><i class="legend-fold"></i> FOLD</span>
-            <span><i class="legend-cusp"></i> CUSP</span>
+            <span><i class="legend-fold"></i> FOLD · J=0</span>
+            <span><i class="legend-cusp"></i> CUSP · ENDPOINT</span>
             <b id="source-coordinates">u .860 // v .200</b>
           </div>
         </article>
