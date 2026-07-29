@@ -192,9 +192,189 @@
         </ol>
       </section>
 
-      <section class="degree-section" aria-labelledby="degree-title">
+      <section class="correspondence-section" aria-labelledby="correspondence-title">
         <div class="section-heading">
           <span>03</span>
+          <div>
+            <p class="eyebrow">손계산 ↔ 게임 대응표</p>
+            <h2 id="correspondence-title">무엇을 적분했고, 그것이 화면의 무엇인가</h2>
+          </div>
+        </div>
+
+        <p class="integral-answer">
+          적분한 것은 플레이어 궤적이 아니다. <strong>source torus의 모든 미소 면적
+          <code>du∧dv</code>가 map을 지나며 만든 signed state-area</strong>를 적분했다.
+        </p>
+
+        <div class="integral-lock">
+          <p class="eyebrow">계산 목표와 type</p>
+          <p class="large-formula">
+            deg F = [1 / ∫<sub>T²<sub>state</sub></sub>ω]
+            ∫<sub>T²<sub>source</sub></sub>F*ω,
+            &nbsp; ω = du′∧dv′ ∈ Ω²(T²<sub>state</sub>)
+          </p>
+          <p>
+            여기서는 <code>∫T²<sub>state</sub>ω = 1</code>로 정규화했다.
+            따라서 분모는 1이고, 분자의 source 전체 적분값이 곧 degree다.
+          </p>
+        </div>
+
+        <ol class="pullback-calculation" id="atomic-pullback">
+          <li>
+            <span>1</span>
+            <div>
+              <b>state의 면적 단위를 source로 당긴다.</b>
+              <p><code>F*ω = F*(du′∧dv′) = d(u′∘F) ∧ d(v′∘F)</code></p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <b>두 좌표를 미분한다.</b>
+              <p><code>du′ = du</code></p>
+              <p><code>dv′ = [A′(u)sin(2πv)/(2π)]du + [1+A(u)cos(2πv)]dv</code></p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <b>왜 A′(u) 항이 사라지는지 적는다.</b>
+              <p><code>F*ω = du ∧ {[A′(u)sin(2πv)/(2π)]du + [1+A(u)cos(2πv)]dv}</code></p>
+              <p><code>du∧du = 0</code>이므로 첫 항만이 아니라 <em>첫 항이 정확히 소거</em>된다.</p>
+            </div>
+          </li>
+          <li data-source="src/game.js" data-quote="return 1 + foldAmplitude(u) * Math.cos(TAU * wrap01(v));">
+            <span>4</span>
+            <div>
+              <b>남은 계수가 게임의 Jacobian이다.</b>
+              <p><code>F*ω = [1+A(u)cos(2πv)]du∧dv = J(u,v)du∧dv</code></p>
+            </div>
+          </li>
+          <li>
+            <span>5</span>
+            <div>
+              <b>source square 전체—즉 torus의 한 fundamental domain—를 적분한다.</b>
+              <p><code>∫₀¹∫₀¹ J(u,v) dv du = ∫₀¹[1 + A(u)∫₀¹cos(2πv)dv]du = 1</code></p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="dimension-warning">
+          <b>경로를 적분한 것이 아니라는 결정적 검사</b>
+          <p>
+            플레이어 경로는 <code>γ:S¹→T²<sub>source</sub></code>인 1차원 곡선이다.
+            2-form은 1차원에서 사라지므로 <code>γ*(F*ω)=0</code>이다.
+            화면의 trail은 적분영역이 아니라, 어느 source gate를 방문했는지를 결정하는 조종 기록이다.
+          </p>
+        </div>
+
+        <div class="correspondence-table table-wrap">
+          <table>
+            <thead>
+              <tr><th>손계산의 대상</th><th>수학적 의미</th><th>게임에서 보이는 것</th><th>대응 판정</th></tr>
+            </thead>
+            <tbody>
+              <tr data-calculation-object="source-point" data-game-status="exact" data-source="src/game.js" data-quote="source: { u: source.u, v: source.v },">
+                <th><code>x=(u,v)</code></th>
+                <td>source torus의 한 점</td>
+                <td>왼쪽 DOMAIN의 조종점과 source 좌표</td>
+                <td><strong class="exact">정확</strong></td>
+              </tr>
+              <tr data-calculation-object="mapped-point" data-game-status="exact" data-source="src/game.js" data-quote="mapped: mapToState(source),">
+                <th><code>F(x)=(u′,v′)</code></th>
+                <td>그 source가 보내지는 state점</td>
+                <td>오른쪽 STATE SURFACE의 밝은 mapped image</td>
+                <td><strong class="exact">정확</strong></td>
+              </tr>
+              <tr data-calculation-object="target-form" data-game-status="conceptual">
+                <th><code>ω=du′∧dv′</code></th>
+                <td>state torus의 oriented unit area</td>
+                <td>직접 그려진 물체가 없음; state의 미소 면적 cell이라는 해석만 존재</td>
+                <td><strong class="conceptual">개념만</strong></td>
+              </tr>
+              <tr data-calculation-object="source-area" data-game-status="conceptual">
+                <th><code>du∧dv</code></th>
+                <td>source torus의 미소 면적 cell</td>
+                <td>gate 하나가 아님; 화면에는 실제 cell mesh가 없음</td>
+                <td><strong class="conceptual">개념만</strong></td>
+              </tr>
+              <tr data-calculation-object="jacobian" data-game-status="exact" data-source="src/main.js" data-quote="const stretch = Math.abs(orientationValue(game.source.u, game.source.v));">
+                <th><code>J(u,v)</code></th>
+                <td>미소 면적의 signed 배율</td>
+                <td>ORIENTATION의 ±가 sign J, STRETCH가 |J|</td>
+                <td><strong class="exact">정확</strong></td>
+              </tr>
+              <tr data-calculation-object="integration-domain" data-game-status="not-computed">
+                <th><code>∫T²<sub>source</sub></code></th>
+                <td>모든 source cell을 빠짐없이 합함</td>
+                <td>게임은 전체 mesh를 순회하거나 적분하지 않음</td>
+                <td><strong class="absent">미구현</strong></td>
+              </tr>
+              <tr data-calculation-object="raw-integral" data-game-status="proxy" data-source="src/game.js" data-quote="this.rawArea += area;">
+                <th><code>C<sub>raw</sub>=∫|J|du dv</code></th>
+                <td>중복을 모두 양수로 센 면적</td>
+                <td>RAW meter는 방문한 packet weight의 합으로 대신함</td>
+                <td><strong class="proxy">대수적 proxy</strong></td>
+              </tr>
+              <tr data-calculation-object="signed-integral" data-game-status="proxy" data-source="src/game.js" data-quote="this.signedArea += sign * area;">
+                <th><code>C<sub>signed</sub>=∫J du dv</code></th>
+                <td>orientation을 보존해 더한 면적</td>
+                <td>SIGNED meter는 방문한 packet의 ± weight 합으로 대신함</td>
+                <td><strong class="proxy">대수적 proxy</strong></td>
+              </tr>
+              <tr data-calculation-object="normalization" data-game-status="proxy" data-source="src/game.js" data-quote="return signedArea / quantum;">
+                <th><code>C<sub>signed</sub>/∫ω</code></th>
+                <td>target 전체 면적으로 나누어 degree를 얻음</td>
+                <td>CHARGE는 authored <code>quantum=1</code>로 나눔; target 면적에서 계산하지 않음</td>
+                <td><strong class="proxy">값만 일치</strong></td>
+              </tr>
+              <tr data-calculation-object="player-path" data-game-status="control-only" data-source="src/game.js" data-quote="state.sourceTrail.push(createTrailPoint(state.source, state.elapsed));">
+                <th><code>γ(t)</code></th>
+                <td>적분식에는 없는 플레이어 경로</td>
+                <td>gate 방문 순서를 정하는 controller와 증거 trail</td>
+                <td><strong class="control">조종만</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="coverage-translation">
+          <article>
+            <p class="eyebrow">손계산의 연속량</p>
+            <p class="large-formula">C<sub>raw</sub> = ∫<sub>T²</sub>|J|du dv ≈ 1.065606</p>
+            <p class="large-formula">C<sub>signed</sub> = ∫<sub>T²</sub>J du dv = 1</p>
+            <p>
+              동치인 target 쪽 표현은
+              <code>∫N<sub>F</sub>(y)ω</code>와 <code>∫m<sub>F</sub>(y)ω</code>다.
+              여기서 <code>N<sub>F</sub></code>는 원상 개수, <code>m<sub>F</sub></code>는 원상 부호 합이다.
+            </p>
+          </article>
+          <article data-source="src/game.js" data-quote="add(patch, orientation, area = 1) {">
+            <p class="eyebrow">MISSION 04의 유한 packet</p>
+            <p class="large-formula">signs = (+, −, +, −, +), &nbsp; a<sub>k</sub>=1</p>
+            <p class="large-formula">RAW = Σa<sub>k</sub> = 5, &nbsp; SIGNED = Σ sign(J(x<sub>k</sub>))a<sub>k</sub> = 1</p>
+            <p data-source="src/game.js" data-quote="const coverage = state.coverage.add(gate.patch, sign);">
+              gate를 먹을 때마다 packet 하나를 더한다. 이것은 cell quadrature가 아니므로
+              <strong><code>RAW 5</code>와 연속 적분값 <code>1.065606</code>은 같은 단위가 아니다.</strong>
+              보존한 것은 “음의 층이 양의 층을 상쇄한다”는 대수뿐이다.
+            </p>
+          </article>
+        </div>
+
+        <div class="closest-correspondence">
+          <p class="eyebrow">게임에서 손계산과 가장 가까운 장면</p>
+          <p>
+            MISSION 03의 흰 state beacon이 정칙값 <code>y</code>, 세 echo가
+            <code>x∈F⁻¹(y)</code>, 각 echo의 ±가 <code>sign det DF<sub>x</sub></code>다.
+            따라서 <code>(+1)+(−1)+(+1)=+1</code>은 regular-value degree 공식을 실제로 재현한다.
+            반면 MISSION 04의 RAW/SIGNED meter는 면적 적분의 계산이 아니라 그 상쇄 규칙을 압축한 과제다.
+          </p>
+        </div>
+      </section>
+
+      <section class="degree-section" aria-labelledby="degree-title">
+        <div class="section-heading">
+          <span>04</span>
           <div>
             <p class="eyebrow">국소의 혼란에서 전역 정수로</p>
             <h2 id="degree-title">제가 노린 불변량은 mapping degree다</h2>
@@ -236,7 +416,7 @@
 
       <section class="winding-section" aria-labelledby="winding-title">
         <div class="section-heading">
-          <span>04</span>
+          <span>05</span>
           <div>
             <p class="eyebrow">질문에 대한 직접 답</p>
             <h2 id="winding-title">그래서 winding form을 정의하고 싶었던 건가?</h2>
@@ -284,7 +464,7 @@
 
       <section class="honesty-section" aria-labelledby="honesty-title">
         <div class="section-heading">
-          <span>05</span>
+          <span>06</span>
           <div>
             <p class="eyebrow">설득의 조건은 한계까지 말하는 것</p>
             <h2 id="honesty-title">정확히 구현한 것과 게임적으로 속인 것</h2>
@@ -325,7 +505,7 @@
 
       <section class="upgrade-section" aria-labelledby="upgrade-title">
         <div class="section-heading">
-          <span>06</span>
+          <span>07</span>
           <div>
             <p class="eyebrow">논문 독자의 기준으로 더 엄밀하게 만들려면</p>
             <h2 id="upgrade-title">gate 합을 실제 discrete degree estimator로 바꿔야 한다</h2>

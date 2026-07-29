@@ -202,6 +202,39 @@ test("signed preimage count and normalized pullback integral independently give 
   assert.ok(Math.abs(pullbackIntegral - 1) < 1e-12);
 });
 
+test("the continuous area integral and mission packet proxy preserve cancellation but not units", () => {
+  const grid = 1024;
+  let continuousRaw = 0;
+  let continuousSigned = 0;
+  for (let uIndex = 0; uIndex < grid; uIndex += 1) {
+    for (let vIndex = 0; vIndex < grid; vIndex += 1) {
+      const jacobian = orientationValue(
+        (uIndex + 0.5) / grid,
+        (vIndex + 0.5) / grid,
+      );
+      continuousRaw += Math.abs(jacobian);
+      continuousSigned += jacobian;
+    }
+  }
+  continuousRaw /= grid * grid;
+  continuousSigned /= grid * grid;
+
+  assert.ok(Math.abs(continuousRaw - 1.06560574) < 5e-7);
+  assert.ok(Math.abs(continuousSigned - 1) < 1e-12);
+
+  const cancellationMission = makeMissions().find((mission) => mission.id === "cancel");
+  const packetSigns = cancellationMission.gates.map((gate) => (
+    orientationAt(gate.u, gate.v)
+  ));
+  const packetRaw = cancellationMission.gates.length;
+  const packetSigned = packetSigns.reduce((sum, sign) => sum + sign, 0);
+
+  assert.deepEqual(packetSigns, [1, -1, 1, -1, 1]);
+  assert.equal(packetRaw, 5);
+  assert.equal(packetSigned, 1);
+  assert.ok(Math.abs(packetRaw - continuousRaw) > 3);
+});
+
 test("documented cusp points satisfy the cusp rather than ordinary-fold conditions", () => {
   const firstCusp = cuspPoints()[0];
   const amplitude = foldAmplitude(firstCusp.u);
@@ -236,6 +269,43 @@ test("every philosophy claim anchor resolves to one exact source substring", () 
     assert.ok(
       html.includes(Math.abs(orientationValue(0, root)).toFixed(6)),
       `worked example should show |J|=${Math.abs(orientationValue(0, root)).toFixed(6)}`,
+    );
+  }
+});
+
+test("the philosophy page maps every hand-calculation object to an explicit game status", () => {
+  const html = readFileSync(
+    resolve(import.meta.dirname, "..", "philosophy.html"),
+    "utf8",
+  );
+  const rows = [...html.matchAll(
+    /<tr data-calculation-object="([^"]+)" data-game-status="([^"]+)"/g,
+  )].map(([, object, status]) => [object, status]);
+
+  assert.deepEqual(rows, [
+    ["source-point", "exact"],
+    ["mapped-point", "exact"],
+    ["target-form", "conceptual"],
+    ["source-area", "conceptual"],
+    ["jacobian", "exact"],
+    ["integration-domain", "not-computed"],
+    ["raw-integral", "proxy"],
+    ["signed-integral", "proxy"],
+    ["normalization", "proxy"],
+    ["player-path", "control-only"],
+  ]);
+
+  for (const requiredCalculation of [
+    "F*ω = F*(du′∧dv′) = d(u′∘F) ∧ d(v′∘F)",
+    "du∧du = 0",
+    "F*ω = [1+A(u)cos(2πv)]du∧dv = J(u,v)du∧dv",
+    "γ*(F*ω)=0",
+    "RAW 5",
+    "1.065606",
+  ]) {
+    assert.ok(
+      html.includes(requiredCalculation),
+      `philosophy should expose the calculation step: ${requiredCalculation}`,
     );
   }
 });
