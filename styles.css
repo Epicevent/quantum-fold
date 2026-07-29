@@ -340,6 +340,65 @@ button {
   color: var(--negative);
 }
 
+.live-correspondence {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  background: rgba(5, 14, 21, 0.82);
+}
+
+.live-correspondence > div {
+  min-width: 0;
+  padding: 10px 14px;
+}
+
+.live-correspondence > i {
+  align-self: center;
+  color: var(--faint);
+  font-style: normal;
+}
+
+.live-correspondence small,
+.live-correspondence strong {
+  display: block;
+}
+
+.live-correspondence small {
+  color: var(--faint);
+  font-size: 7px;
+  letter-spacing: 0.13em;
+}
+
+.live-correspondence strong {
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-correspondence [data-kind="reversed"] strong { color: var(--negative); }
+.live-correspondence [data-kind="fold"] strong,
+.live-correspondence [data-kind="cusp"] strong { color: var(--amber); }
+
+.live-correspondence > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 6px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: Inter, Arial, sans-serif;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.live-correspondence > p b:first-child { color: var(--cyan); }
+.live-correspondence > p b:last-child { color: var(--coral); }
+
 .playfield {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr);
@@ -924,6 +983,11 @@ canvas {
   line-height: 1.55;
 }
 
+.start-copy b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .primary-button,
 .secondary-button {
   min-height: 48px;
@@ -1265,6 +1329,15 @@ canvas {
     padding-bottom: 8px;
   }
 
+  .live-correspondence > p {
+    display: none;
+  }
+
+  .live-correspondence > div {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
   .playfield {
     min-height: 0;
   }
@@ -1326,6 +1399,23 @@ canvas {
 
   .telemetry-charge {
     display: grid;
+  }
+
+  .live-correspondence {
+    grid-template-columns: 1fr;
+  }
+
+  .live-correspondence > i {
+    display: none;
+  }
+
+  .live-correspondence > div {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .live-correspondence > p {
+    font-size: 8px;
   }
 
   .panel {

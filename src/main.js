@@ -1,6 +1,7 @@
 import {
   FIXED_STEP,
   TAU,
+  bzCoordinates,
   chargeFromSignedArea,
   createMissionState,
   cuspPoints,
@@ -69,28 +70,32 @@ const ui = {
   soundIcon: document.querySelector("#sound-icon"),
   cameraButton: document.querySelector("#camera-button"),
   pulseButton: document.querySelector("#pulse-button"),
+  liveBzPoint: document.querySelector("#live-bz-point"),
+  liveBlochPoint: document.querySelector("#live-bloch-point"),
+  liveCellCard: document.querySelector("#live-cell-card"),
+  liveCellContribution: document.querySelector("#live-cell-contribution"),
 };
 
 const FIELD_EFFECT_COPY = {
   positive: {
-    name: "POSITIVE SHEET",
-    action: "λ̄ > 0 · ORIENTED BLOCH AREA ADDS",
-    result: "GATE PACKET COLLECTED HERE: +1",
+    name: "HERE: A SMALL BZ PATCH ADDS AREA",
+    action: "MOVE LEFT DOT → WHITE BLOCH DOT MOVES",
+    result: "λ̄ > 0 · AN AUTHORED GATE HERE CARRIES +1",
   },
   fold: {
-    name: "METRIC SINGULAR / FOLD",
-    action: "det g = λ̄² → 0 · g⁻¹ UNDEFINED",
-    result: "FRONT NORMAL REMAINS · CROSSING FLIPS SIGN",
+    name: "ON AMBER LINE: THE PATCH COLLAPSES TO A CURVE",
+    action: "λ̄ ≈ 0 · THE WHITE IMAGE TURNS BACK",
+    result: "det g = 0 · g⁻¹ UNAVAILABLE · NO DAMAGE",
   },
   reversed: {
-    name: "REVERSED SHEET",
-    action: "λ̄ < 0 · ORIENTED BLOCH AREA SUBTRACTS",
-    result: "GATE PACKET COLLECTED HERE: −1",
+    name: "INSIDE CORAL REGION: THE PATCH COUNTS BACKWARD",
+    action: "MOVE LEFT DOT → WHITE IMAGE HAS REVERSED ORIENTATION",
+    result: "λ̄ < 0 · AN AUTHORED GATE HERE CARRIES −1",
   },
   cusp: {
-    name: "WHITNEY CUSP",
-    action: "KERNEL TANGENT TO Σ · FOLD IMAGE FORMS A CUSP",
-    result: "SINGULAR-CURVATURE WARNING · NO DAMAGE · NO PICKUP",
+    name: "AT AMBER TRIANGLE: THE FOLD ITSELF TURNS",
+    action: "SOURCE MOTION ALIGNS WITH THE COLLAPSED DIRECTION",
+    result: "SHARP MAPPING COMPRESSION · NO DAMAGE · NO PICKUP",
   },
 };
 
@@ -859,8 +864,8 @@ function updateTelemetry() {
   const charge = chargeFromSignedArea(game.coverage.signedArea);
   ui.chargeValue.textContent = formatSigned(charge);
   ui.chargeTarget.textContent = mission.targetCharge === null
-    ? "UNCALIBRATED"
-    : `TARGET ${formatSigned(mission.targetCharge)}`;
+    ? "AUTHORED PROXY"
+    : `PACKET TARGET ${formatSigned(mission.targetCharge)}`;
 
   if (game.remaining === null) {
     ui.timerValue.textContent = "∞";
@@ -872,6 +877,17 @@ function updateTelemetry() {
 
   ui.sourceCoordinates.textContent = `u ${game.source.u.toFixed(3)} // v ${game.source.v.toFixed(3)}`;
   ui.stateCoordinates.textContent = `n (${game.mapped.x.toFixed(2)}, ${game.mapped.y.toFixed(2)}, ${game.mapped.z.toFixed(2)})`;
+  const { kx, ky } = bzCoordinates(game.source);
+  ui.liveBzPoint.textContent = `k=(${formatSigned(kx / Math.PI, 2)}π, ${formatSigned(ky / Math.PI, 2)}π)`;
+  ui.liveBlochPoint.textContent = `n=(${game.mapped.x.toFixed(2)}, ${game.mapped.y.toFixed(2)}, ${game.mapped.z.toFixed(2)})`;
+  ui.liveCellCard.dataset.kind = fieldEffect.kind;
+  const contributionCopy = {
+    positive: "ADDS ORIENTED AREA",
+    fold: "MAPPED PATCH COLLAPSES",
+    reversed: "SUBTRACTS ORIENTED AREA",
+    cusp: "FOLD DIRECTION TURNS",
+  }[fieldEffect.kind];
+  ui.liveCellContribution.textContent = `λ̄=${formatSigned(fieldEffect.signedDensity, 3)} · ${contributionCopy}`;
   ui.cameraPhase.textContent = `VIEW ${String(Math.round((((camera.yaw % TAU) + TAU) % TAU) * 180 / Math.PI)).padStart(3, "0")}°`;
   ui.rawValue.textContent = game.coverage.rawArea.toFixed(0);
   ui.signedValue.textContent = formatSigned(game.coverage.signedArea);
@@ -886,34 +902,34 @@ function updateTelemetry() {
     : "linear-gradient(90deg, rgba(101,255,226,.54), #65ffe2)";
 
   if (game.coverage.rawArea === 0) {
-    ui.coverageMessage.textContent = "The image remembers every layer.";
+    ui.coverageMessage.textContent = "No packet has been collected. This is not the BZ integral.";
   } else if (Math.abs(game.coverage.signedArea) < game.coverage.rawArea) {
-    ui.coverageMessage.textContent = "Raw sweep rose. Opposite layers cancelled.";
+    ui.coverageMessage.textContent = "More packets were visited, but opposite signs cancelled.";
   } else {
-    ui.coverageMessage.textContent = "Every captured layer currently reinforces.";
+    ui.coverageMessage.textContent = "Every collected packet currently has the same sign.";
   }
 }
 
 const completionCopy = {
   seam: {
     title: "The seam is a passage.",
-    summary: "Your source returned through the opposite edge without ending the run. The square is periodic; the border is only a drawing.",
+    summary: "The cyan k point left one edge and re-entered at the opposite edge. The square drawing represents one periodic BZ torus.",
   },
   reverse: {
-    title: "The image changed its mind.",
-    summary: "Crossing a fold reversed your contribution and the response of the mapped image. The fold was a sign change, never a wall.",
+    title: "The white image folded back.",
+    summary: "At the amber line λ̄ reached zero; after crossing it, the same small BZ patch contributed with the opposite orientation. Nothing damaged the player.",
   },
   echo: {
     title: "One light held three histories.",
-    summary: "Three distinct source points landed on one visible state point. Their +, −, + layers left a stable signed result of +1.",
+    summary: "Three distinct cyan source points landed on one white Bloch point. The packet signs +, +, − summed to +1; the three λ̄ magnitudes were not added as packet values.",
   },
   cancel: {
-    title: "Five layers became one.",
-    summary: "Raw coverage reached five, but paired opposite layers erased one another. Signed coverage—not apparent sweep—carried the mission.",
+    title: "Five authored packets summed to one.",
+    summary: "The game added +1, −1, +1, −1, +1. This demonstrates sign cancellation; it is not numerical quadrature of the full BZ.",
   },
   free: {
-    title: "Chern receipt locked at +1.",
-    summary: "Three positive and two negative evidence packets reproduced the model's Chern integer. The packet score is a playable proxy for the full BZ integral.",
+    title: "Packet proxy locked at +1.",
+    summary: "Three positive and two negative gate packets summed to +1. The paper's Chern number comes from integrating every BZ cell, not from these five gates.",
   },
 };
 

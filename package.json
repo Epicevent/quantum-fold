@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "A deterministic arcade cartography game about folds, provenance, and signed coverage.",
+  "description": "Move one BZ point, watch its Bloch image, and cross a signed-area fold.",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "test": "node --test",

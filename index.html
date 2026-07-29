@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#071019">
     <meta
       name="description"
-      content="Quantum Fold: a fast, deterministic arcade cartography game about periodic motion, folds, provenance, and signed coverage."
+      content="Move one point on the Brillouin-zone board, watch its Bloch-sphere image, and see the signed area contribution change across a fold."
     >
-    <title>Quantum Fold — Arcade Cartography</title>
+    <title>Quantum Fold — Move a BZ Point, Read Its Bloch Image</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
   </head>
@@ -23,7 +23,7 @@
           </span>
           <span>
             <b>QUANTUM FOLD</b>
-            <small>ARCADE CARTOGRAPHY</small>
+            <small>BZ → BLOCH ARCADE</small>
           </span>
         </a>
 
@@ -84,15 +84,33 @@
           <span id="stretch-word">STEADY</span>
         </div>
         <div class="telemetry-item telemetry-charge">
-          <small>GLOBAL CHARGE</small>
+          <small>PACKET SUM</small>
           <strong id="charge-value">0</strong>
-          <span id="charge-target">UNCALIBRATED</span>
+          <span id="charge-target">AUTHORED PROXY</span>
         </div>
         <div class="telemetry-item telemetry-timer">
           <small>COHERENCE</small>
           <strong id="timer-value">∞</strong>
           <span id="timer-word">OPEN RUN</span>
         </div>
+      </section>
+
+      <section class="live-correspondence" aria-label="Current hand calculation mapped to the game scene">
+        <div>
+          <small>1 · YOU MOVE THIS BZ POINT</small>
+          <strong id="live-bz-point">k=(+0.00π,+0.00π)</strong>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <small>2 · THE MAP DRAWS THIS BLOCH POINT</small>
+          <strong id="live-bloch-point">n=(0.00,0.00,1.00)</strong>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div id="live-cell-card" data-kind="positive">
+          <small>3 · THIS SMALL BZ CELL CONTRIBUTES</small>
+          <strong id="live-cell-contribution">λ̄=+0.000 · ADDS</strong>
+        </div>
+        <p><b>PAPER:</b> sum every BZ cell, then take the continuum limit. <b>GAME:</b> collected gate packets only imitate the sign cancellation.</p>
       </section>
 
       <section class="playfield" id="playfield">
@@ -111,15 +129,15 @@
             <span class="edge-label edge-left">WRAPS EAST</span>
             <span class="edge-label edge-right">WRAPS WEST</span>
             <div class="field-effect-card" id="field-effect-card" data-kind="positive" aria-live="polite">
-              <small id="field-effect-name">POSITIVE SHEET · λ̄ &gt; 0</small>
-              <b id="field-effect-action">ORIENTED BLOCH AREA ADDS</b>
-              <span id="field-effect-result">GATE PACKET HERE: +1</span>
+              <small id="field-effect-name">HERE: A SMALL BZ PATCH ADDS AREA</small>
+              <b id="field-effect-action">MOVE LEFT DOT → WHITE BLOCH DOT MOVES</b>
+              <span id="field-effect-result">λ̄ &gt; 0 · AN AUTHORED GATE HERE CARRIES +1</span>
             </div>
             <div class="cusp-alert" id="cusp-alert" hidden>
               <span>◆</span>
               <div>
-                <b>WHITNEY CUSP · det g=0</b>
-                <small>KERNEL TANGENT TO Σ · SINGULAR-CURVATURE WARNING</small>
+                <b>AT THIS AMBER TRIANGLE, THE FOLD ITSELF TURNS</b>
+                <small>MOTION COMPRESSES SHARPLY · NO DAMAGE · NO PICKUP</small>
               </div>
             </div>
           </div>
@@ -164,15 +182,15 @@
         </article>
       </section>
 
-      <section class="coverage" aria-label="Coverage evidence">
+      <section class="coverage" aria-label="Authored packet evidence">
         <div class="coverage-copy">
-          <span class="kicker">COVERAGE RECEIPT</span>
-          <b id="coverage-message">The image remembers every layer.</b>
+          <span class="kicker">GAME PROXY RECEIPT</span>
+          <b id="coverage-message">No packet has been collected.</b>
         </div>
         <div class="coverage-meter">
           <div class="meter-labels">
-            <span>RAW AREA <b id="raw-value">0</b></span>
-            <span>SIGNED AREA <b id="signed-value">0</b></span>
+            <span>PACKETS VISITED <b id="raw-value">0</b></span>
+            <span>SIGNED PACKET SUM <b id="signed-value">0</b></span>
           </div>
           <div class="meter-track">
             <i class="raw-meter" id="raw-meter"></i>
@@ -208,17 +226,17 @@
         <i></i><i></i><i></i>
         <b>ƒ</b>
       </div>
-      <p class="start-kicker">FIELD PILOT // ORIENTATION UNKNOWN</p>
-      <h2>FLY THE SOURCE.<br><em>READ THE FOLD.</em></h2>
+      <p class="start-kicker">ONE BZ POINT // ONE BLOCH IMAGE</p>
+      <h2>MOVE THE CYAN POINT.<br><em>WATCH THE WHITE POINT ANSWER.</em></h2>
       <p class="start-copy">
-        One controllable point. Two linked worlds.<br>
-        What looks covered may still cancel.
+        The left point is <b>k</b>. The right point is <b>P(k)</b>.<br>
+        At the amber line, a tiny mapped area collapses and its sign flips.
       </p>
       <button class="primary-button" id="start-button" type="button">
-        <span>ENTER THE FIELD</span>
+        <span>MOVE THE POINT</span>
         <kbd>ENTER</kbd>
       </button>
-      <small>HEADPHONES RECOMMENDED · NO PRIOR THEORY REQUIRED</small>
+      <small>LEFT: BZ SOURCE · RIGHT: BLOCH IMAGE · AMBER: λ̄=0</small>
     </div>
 
     <div class="pause-screen" id="pause-screen" hidden>
@@ -248,9 +266,9 @@
         <div class="evidence-stats">
           <div><small>FINAL SIGN</small><b id="evidence-sign">+</b></div>
           <div><small>MULTIPLICITY</small><b id="evidence-multiplicity">1×</b></div>
-          <div><small>RAW AREA</small><b id="evidence-raw">0</b></div>
-          <div><small>SIGNED AREA</small><b id="evidence-signed">0</b></div>
-          <div><small>INTEGER</small><b id="evidence-charge">0</b></div>
+          <div><small>PACKETS</small><b id="evidence-raw">0</b></div>
+          <div><small>SIGNED SUM</small><b id="evidence-signed">0</b></div>
+          <div><small>PROXY RESULT</small><b id="evidence-charge">0</b></div>
           <div><small>TIME</small><b id="evidence-time">0.0s</b></div>
         </div>
 

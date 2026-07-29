@@ -317,6 +317,37 @@ test("field feedback distinguishes positive, fold, reversed, and cusp effects", 
   assert.equal(cuspEffect.isCollectible, false);
 });
 
+test("the first interactive scene crosses one actual fold and exposes the live correspondence", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const html = readFileSync(resolve(root, "philosophy.html"), "utf8");
+  const script = readFileSync(resolve(root, "src", "philosophy.js"), "utf8");
+  const gameHtml = readFileSync(resolve(root, "index.html"), "utf8");
+  const readme = readFileSync(resolve(root, "README.md"), "utf8");
+  const [firstFold] = foldBranchesAtU(0.6);
+
+  assert.ok(firstFold > 0.15 && firstFold < 0.6);
+  assert.equal(orientationAt(0.6, 0.15), 1);
+  assert.equal(orientationAt(0.6, 0.6), -1);
+  assert.ok(html.includes('id="scene-slider" type="range" min="0.15" max="0.60"'));
+  assert.ok(script.includes("const sourceU = 0.6;"));
+  assert.ok(script.includes("const mapped = mapToState(source);"));
+  assert.ok(script.includes("const density = orientationValue(source.u, source.v);"));
+  assert.ok(script.includes("const multiplicity = findSourcesForState(mapped).length;"));
+
+  for (const liveId of [
+    "live-bz-point",
+    "live-bloch-point",
+    "live-cell-contribution",
+  ]) {
+    assert.ok(gameHtml.includes(`id="${liveId}"`));
+  }
+  for (const misleadingLabel of ["GLOBAL CHARGE", "RAW AREA", "SIGNED AREA"]) {
+    assert.equal(gameHtml.includes(misleadingLabel), false);
+  }
+  assert.ok(readme.includes("not along the player's trail"));
+  assert.ok(readme.includes("do not perform that integral"));
+});
+
 test("every philosophy claim anchor resolves to one exact source substring", () => {
   const root = resolve(import.meta.dirname, "..");
   const html = readFileSync(resolve(root, "philosophy.html"), "utf8");
@@ -358,30 +389,28 @@ test("the philosophy page maps every hand-calculation object to an explicit game
   )].map(([, object, status]) => [object, status]);
 
   assert.deepEqual(rows, [
+    ["bz-domain", "exact"],
     ["bz-point", "exact"],
     ["bloch-map", "exact"],
     ["signed-density", "exact"],
     ["metric-determinant", "exact"],
-    ["regularized-inverse", "not-implemented"],
     ["singular-curve", "exact"],
     ["cusps", "exact"],
     ["multiplicity", "exact"],
-    ["front", "conceptual"],
-    ["singular-curvature", "not-computed"],
     ["chern-integral", "verified-not-played"],
     ["packet-score", "proxy"],
+    ["front", "conceptual"],
+    ["singular-curvature", "not-computed"],
     ["projector-polynomial", "not-implemented"],
   ]);
 
   for (const requiredCalculation of [
-    "dĀ=λ̄(k) dk<sub>x</sub>∧dk<sub>y</sub>",
+    "λ̄(k)dk<sub>x</sub>dk<sub>y</sub>",
+    "dĀ=λ̄(k)dk<sub>x</sub>∧dk<sub>y</sub>",
     "det g=λ̄²",
     "(1/4π)∫K<sub>G</sub>dĀ=(1/2π)∫<sub>BZ</sub>λ̄ dk<sub>x</sub>dk<sub>y</sub>=C=1",
-    "(1/2π)∫|λ̄|dk<sub>x</sub>dk<sub>y</sub>≈1.1889",
-    "Q<sub>game</sub>=Σ ε<sub>j</sub>a<sub>j</sub>",
+    "Q<sub>game</sub>=Σ<sub>j</sub>ε<sub>j</sub>",
     "K<sub>α</sub>(H)",
-    "g<sub>reg</sub><sup>−1</sup>=(g+λ<sub>reg</sub>I)<sup>−1</sup>",
-    "(g+λ<sub>reg</sub>I)<sup>−1</sup>g=Q diag(sᵢ/(sᵢ+λ<sub>reg</sub>))Q<sup>T</sup>",
   ]) {
     assert.ok(
       html.includes(requiredCalculation),
@@ -390,26 +419,24 @@ test("the philosophy page maps every hand-calculation object to an explicit game
   }
 });
 
-test("the specification uses a neutral voice and exposes the amber geometry contract", () => {
+test("the artifacts show one concrete scene before naming principles or formulas", () => {
   const root = resolve(import.meta.dirname, "..");
   const philosophy = readFileSync(resolve(root, "philosophy.html"), "utf8");
   const gameHtml = readFileSync(resolve(root, "index.html"), "utf8");
   const renderer = readFileSync(resolve(root, "src", "main.js"), "utf8");
 
   for (const requiredText of [
-    "<title>Quantum Fold — Paper-to-Game Implementation Specification</title>",
-    "어느 역행렬이, 어디서, 왜 사라지는가",
+    "<title>Quantum Fold — 왼쪽 BZ 점, 오른쪽 Bloch 점, 그리고 실제 적분</title>",
+    "왼쪽 점을 움직이면 오른쪽 점이 움직인다. 노란 선에서 작은 면적이 0으로 눌린 뒤 부호가 바뀐다",
+    "실제 게임 장면 하나",
+    "적분영역은 궤적이 아니라 왼쪽 보드 전체다",
+    "노란 선과 삼각형에 들어가면 화면에서 무엇이 달라지는가",
+    "위 장면을 만드는 two-band map과 막히는 계산",
     "f:T²<sub>BZ</sub>→S²<sub>Bloch</sub>",
-    "Σ={k:det g(k)=0}",
-    "g<sub>reg</sub><sup>−1</sup>=(g+λ<sub>reg</sub>I)<sup>−1</sup>",
-    "Fold의 kernel 고유값 <code>s₂=0</code>은 여전히 0이므로 잃어버린 방향을 복원하지 못한다.",
-    "<code>λ<sub>reg</sub></code>와 <code>λ̄</code>는 서로 다른 양이다.",
-    "dĀ=λ̄ dk<sub>x</sub>∧dk<sub>y</sub>",
-    "손으로 적분한 양과 게임 meter의 대응",
-    "“요상한 다항식”은 fold의 역행렬을 구하지 않는다",
-    "실제 구현과 proxy를 분리한 대응표",
-    "metric rank loss, four Whitney cusps, 1↔3 preimages, signed Berry area, Chern integer +1",
-    "벽이나 damage zone이 아니다.",
+    "damage도 pickup도 없고 packet sign도 없다.",
+    "게임 packet은 그 적분값이 아니라 부호 상쇄만 연습시키는 proxy다.",
+    "다항식은 노란 fold에서 <code>g⁻¹</code>를 만드는 장치가 아니다",
+    "화면·손계산·구현의 최종 대응",
   ]) {
     assert.ok(philosophy.includes(requiredText), `specification should include: ${requiredText}`);
   }
@@ -430,6 +457,8 @@ test("the specification uses a neutral voice and exposes the amber geometry cont
     "T²→T²",
     "CUSP NORMAL FORM ≠ INVERSE-REPLACEMENT ALGORITHM",
     "singular Jacobian의 역행렬을 복구",
+    "IMPLEMENTED MATHEMATICAL TARGET",
+    "THE ACTUAL OBSTRUCTION",
   ]) {
     assert.equal(
       philosophy.includes(forbiddenText),
@@ -438,18 +467,38 @@ test("the specification uses a neutral voice and exposes the amber geometry cont
     );
   }
 
+  const sceneIndex = philosophy.indexOf("실제 게임 장면 하나");
+  const integralIndex = philosophy.indexOf("적분영역은 궤적이 아니라 왼쪽 보드 전체다");
+  const mathIndex = philosophy.indexOf("위 장면을 만드는 two-band map과 막히는 계산");
+  assert.ok(sceneIndex > 0 && sceneIndex < integralIndex && integralIndex < mathIndex);
+
   for (const gameContractText of [
-    "WHITNEY CUSP · det g=0",
-    "KERNEL TANGENT TO Σ · SINGULAR-CURVATURE WARNING",
-    "Σ · det g=0",
-    "AREA DENSITY |λ̄|",
-    "BLOCH SPHERE",
+    "1 · YOU MOVE THIS BZ POINT",
+    "2 · THE MAP DRAWS THIS BLOCH POINT",
+    "3 · THIS SMALL BZ CELL CONTRIBUTES",
+    "PAPER:</b> sum every BZ cell",
+    "GAME:</b> collected gate packets only imitate the sign cancellation",
+    "AT THIS AMBER TRIANGLE, THE FOLD ITSELF TURNS",
+    "PACKET SUM",
+    "GAME PROXY RECEIPT",
   ]) {
     assert.ok(gameHtml.includes(gameContractText), `game HUD should include: ${gameContractText}`);
   }
-  assert.ok(renderer.includes("λ̄ < 0 · ORIENTED BLOCH AREA SUBTRACTS"));
-  assert.ok(renderer.includes("det g = λ̄² → 0 · g⁻¹ UNDEFINED"));
-  assert.ok(renderer.includes("KERNEL TANGENT TO Σ · FOLD IMAGE FORMS A CUSP"));
-  assert.ok(renderer.includes("SINGULAR-CURVATURE WARNING · NO DAMAGE · NO PICKUP"));
+  assert.ok(renderer.includes("HERE: A SMALL BZ PATCH ADDS AREA"));
+  assert.ok(renderer.includes("ON AMBER LINE: THE PATCH COLLAPSES TO A CURVE"));
+  assert.ok(renderer.includes("INSIDE CORAL REGION: THE PATCH COUNTS BACKWARD"));
+  assert.ok(renderer.includes("AT AMBER TRIANGLE: THE FOLD ITSELF TURNS"));
+  assert.ok(renderer.includes("This is not the BZ integral."));
   assert.ok(renderer.includes("function drawSphereMesh"));
+});
+
+test("the explanation exposes explicit before, fold, and after states", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const philosophy = readFileSync(resolve(root, "philosophy.html"), "utf8");
+  const controller = readFileSync(resolve(root, "src", "philosophy.js"), "utf8");
+
+  assert.match(philosophy, /data-scene-v="0\.150"/);
+  assert.match(philosophy, /data-scene-v="0\.266666666667"/);
+  assert.match(philosophy, /data-scene-v="0\.400"/);
+  assert.match(controller, /button\.addEventListener\("click"/);
 });

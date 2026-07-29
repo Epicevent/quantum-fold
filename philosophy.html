@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#071019">
     <meta
       name="description"
-      content="Quantum Fold의 논문-게임 구현 사양: quantum metric의 rank loss, front, signed area, singular curvature, Chern number, Bloch-sphere mechanic의 정확한 대응."
+      content="왼쪽 Brillouin-zone 점, 오른쪽 Bloch 점, signed area density 적분, 노란 fold와 cusp, 게임 packet proxy의 실제 대응."
     >
-    <title>Quantum Fold — Paper-to-Game Implementation Specification</title>
+    <title>Quantum Fold — 왼쪽 BZ 점, 오른쪽 Bloch 점, 그리고 실제 적분</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./philosophy.css">
   </head>
@@ -19,20 +19,18 @@
       <a class="back-link" href="./index.html"><span aria-hidden="true">←</span> GAME</a>
       <div class="brand-lockup">
         <span class="brand-orbit" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><b>QUANTUM FOLD</b><small>IMPLEMENTATION SPEC // 02</small></span>
+        <span><b>QUANTUM FOLD</b><small>SCREEN ↔ CALCULATION</small></span>
       </div>
-      <span class="header-tag">QUANTUM METRIC / CHERN NUMBER</span>
+      <span class="header-tag">ONE BZ POINT / ONE BLOCH IMAGE</span>
     </header>
 
     <main>
       <section class="hero">
-        <p class="eyebrow">IMPLEMENTED MATHEMATICAL TARGET</p>
-        <h1>Fold에서 quantum metric의 역행렬이 사라진다; 논문은 이를 복구하지 않고 signed Gauss curvature의 적분을 Chern number에 연결한다</h1>
+        <p class="eyebrow">THE FIRST VISIBLE EVENT</p>
+        <h1>왼쪽 점을 움직이면 오른쪽 점이 움직인다. 노란 선에서 작은 면적이 0으로 눌린 뒤 부호가 바뀐다</h1>
         <p class="hero-thesis">
-          source는 Brillouin torus <code>T²<sub>BZ</sub></code>, image는 lower-band projector가 놓이는
-          Bloch sphere <code>S²</code>다. singular curve <code>Σ={det g=0}</code>에서는
-          <code>g⁻¹</code>를 요구하는 통상 curvature 계산이 멈춘다. 논문이 도입하는 핵심 구조는
-          <strong>front, signed area form, fold 위의 singular curvature, generalized Gauss–Bonnet relation</strong>이다.
+          플레이어 궤적을 적분하는 것이 아니다. 논문의 적분은 <strong>BZ 보드 전체</strong>의 작은 cell마다
+          <code>λ̄(k)dk<sub>x</sub>dk<sub>y</sub></code>를 더하는 계산이다. 게임 packet은 그 적분값이 아니라 부호 상쇄만 연습시키는 proxy다.
         </p>
         <div class="scope-note">
           <b>PRIMARY SOURCE</b>
@@ -44,310 +42,291 @@
         </div>
       </section>
 
-      <section aria-labelledby="problem-title">
+      <section aria-labelledby="scene-title">
         <div class="section-heading">
           <span>01</span>
           <div>
-            <p class="eyebrow">THE ACTUAL OBSTRUCTION</p>
-            <h2 id="problem-title">어느 역행렬이, 어디서, 왜 사라지는가</h2>
+            <p class="eyebrow">MOVE ONE POINT ACROSS ONE FOLD</p>
+            <h2 id="scene-title">실제 게임 장면 하나</h2>
           </div>
         </div>
 
-        <div class="formula-stack paper-model" data-source="src/game.js" data-quote="export function blochHamiltonianVector(source) {">
-          <div class="formula-block">
-            <small>PDF p.4 · Eq. (21)–(22)</small>
-            <p>H(k)=d(k)·σ</p>
-            <p>d=(sin k<sub>x</sub>, sin k<sub>y</sub>, 1−cos k<sub>x</sub>−cos k<sub>y</sub>)</p>
-          </div>
-          <div class="formula-block" data-source="src/game.js" data-quote="export function mapToState(source) {">
-            <small>LOWER BAND PROJECTOR</small>
-            <p>P(k)=½(I−σ·d̂(k))</p>
-            <p>f:T²<sub>BZ</sub>→S²<sub>Bloch</sub>, &nbsp; k↦P(k)</p>
-          </div>
-        </div>
-
-        <div class="failure-grid obstruction-grid">
-          <article>
-            <small>REGULAR POINT</small>
-            <h3><code>det g &gt; 0</code></h3>
-            <p><code>g<sup>μν</sup>=(g⁻¹)<sub>μν</sub></code>가 존재한다. second-kind Christoffel symbol과 통상 Riemann/Gauss curvature를 계산할 수 있다.</p>
-          </article>
-          <article>
-            <small>FOLD / SINGULAR CURVE</small>
-            <h3><code>Σ={k:det g(k)=0}</code></h3>
-            <p>tangent map의 rank가 1로 떨어진다. <code>g⁻¹</code>가 없으므로 <code>Γ<sup>α</sup><sub>βγ</sub>=g<sup>ακ</sup>Γ<sub>κβγ</sub></code>부터 통상 계산이 ill-defined다.</p>
-          </article>
-          <article class="replacement">
-            <small>NOT A MATRIX-INVERSE TRICK</small>
-            <h3><code>front + dĀ + κ<sub>s</sub></code></h3>
-            <p>역행렬을 복원하지 않는다. normal field를 포함한 front로 limiting tangent plane을 유지하고, signed area와 fold line term으로 적분 정리를 다시 세운다.</p>
-          </article>
-        </div>
-
-        <div class="critical-answer">
-          <b>논문이 사용하지 않은 수치 우회</b>
-          <p>
-            논문의 방법은 아니지만 <code>g<sub>reg</sub><sup>−1</sup>=(g+λ<sub>reg</sub>I)<sup>−1</sup></code>는
-            <code>λ<sub>reg</sub>&gt;0</code>에서 항상 유한하다. 조종 보정·시각화·optimizer처럼
-            singularity 근처의 폭주를 막는 것이 목적이고 정확한 값이 필요하지 않다면 실용적이다.
-            다만 이것은 <code>g</code>의 역이 아니라 바꾼 행렬의 역이다.
-          </p>
-        </div>
-
-        <div class="critical-answer exact-answer">
-          <b>왜 논문 결과를 대체할 수 없는가</b>
-          <p>
-            <code>g=Q diag(s₁,s₂)Q<sup>T</sup></code>이면
-            <code>(g+λ<sub>reg</sub>I)<sup>−1</sup>g=Q diag(sᵢ/(sᵢ+λ<sub>reg</sub>))Q<sup>T</sup></code>다.
-            Fold의 kernel 고유값 <code>s₂=0</code>은 여전히 0이므로 잃어버린 방향을 복원하지 못한다.
-            그래서 exact Chern 계산은 regularized inverse를 쓰지 않고 forward density <code>λ̄</code>를 직접 적분한다.
-            <code>λ<sub>reg</sub></code>와 <code>λ̄</code>는 서로 다른 양이다.
-          </p>
-        </div>
-
-        <ol class="atomic-derivation construction-flow">
-          <li>
-            <span class="step-index">1</span>
-            <div><b>Front</b><p><code>(f,N)</code>은 <code>f</code>가 singular여도 immersion이다. two-band model에서는 projector에서 normal direction을 잡을 수 있다.</p></div>
-          </li>
-          <li>
-            <span class="step-index">2</span>
-            <div><b>Signed area form · Eq. (23)–(24)</b><p><code>dĀ=λ̄ dk<sub>x</sub>∧dk<sub>y</sub></code>, <code>λ̄=−i tr(P[∂<sub>x</sub>P,∂<sub>y</sub>P])</code>. <code>|λ̄|=√det g</code>지만 λ̄는 fold를 지나며 부호를 보존한다.</p></div>
-          </li>
-          <li>
-            <span class="step-index">3</span>
-            <div><b>Singular curvature · Eq. (30)–(31)</b><p>fold에서 <code>0/0</code>이 되는 geodesic-curvature 식의 극한을 <code>κ<sub>s</sub></code>로 정의해 singular curve의 선적분 항으로 남긴다.</p></div>
-          </li>
-        </ol>
-      </section>
-
-      <section class="screen-contract-section" aria-labelledby="screen-contract-title">
-        <div class="section-heading">
-          <span>02</span>
-          <div>
-            <p class="eyebrow">SCREEN SYMBOL → PAPER OBJECT → EFFECT</p>
-            <h2 id="screen-contract-title">게임 화면에서 바로 읽는 대응</h2>
-          </div>
-        </div>
-
-        <div class="screen-contract-grid">
-          <article data-source="src/game.js" data-quote="export function bzCoordinates(source) {">
-            <i class="contract-symbol source-symbol" aria-hidden="true"></i>
-            <small>CYAN SOURCE</small>
-            <h3><code>k=(k<sub>x</sub>,k<sub>y</sub>)∈T²<sub>BZ</sub></code></h3>
-            <p>왼쪽 DOMAIN에서 직접 조종하는 crystal momentum. 네 변은 주기적으로 식별된다.</p>
-          </article>
-          <article data-source="src/main.js" data-quote="function drawSphereMesh(context, width, height) {">
-            <i class="contract-symbol image-symbol" aria-hidden="true"></i>
-            <small>CORAL IMAGE</small>
-            <h3><code>P(k)∈S²<sub>Bloch</sub></code></h3>
-            <p>오른쪽 BLOCH SPHERE의 대응점. 같은 state point에 BZ source가 하나 또는 셋일 수 있다.</p>
-          </article>
-          <article data-source="src/game.js" data-quote="return signedAreaDensity(u, v) ** 2;">
-            <i class="contract-symbol reversed-symbol" aria-hidden="true"></i>
-            <small>CORAL SHEET</small>
-            <h3><code>λ̄&lt;0</code></h3>
-            <p>orientation-reversing sheet. 이 위치의 authored evidence packet은 −1이다.</p>
-          </article>
-          <article data-source="src/game.js" data-quote="export function foldBranchesAtU(u) {">
-            <i class="contract-symbol fold-symbol" aria-hidden="true"></i>
-            <small>AMBER CURVE</small>
-            <h3><code>Σ={det g=λ̄²=0}</code></h3>
-            <p>quantum metric의 rank가 떨어져 <code>g⁻¹</code>가 사라지는 fold curve. 벽이나 damage zone이 아니다.</p>
-          </article>
-          <article data-source="src/game.js" data-quote="export function cuspPoints() {">
-            <i class="contract-symbol cusp-symbol" aria-hidden="true"></i>
-            <small>AMBER VERTEX</small>
-            <h3><code>(±π/2,±π/2)</code> · WHITNEY CUSP</h3>
-            <p>fold curve의 endpoint가 아니다. kernel direction이 Σ의 tangent가 되어 image fold가 cusp를 만드는 네 source point다.</p>
-          </article>
-        </div>
-
-        <div class="entry-sequence" aria-label="signed area crossing effect">
-          <div><small>POSITIVE SHEET</small><b>λ̄ &gt; 0</b><span>ORIENTED AREA ADDS · PACKET +1</span></div>
-          <i aria-hidden="true">→</i>
-          <div class="boundary"><small>FOLD Σ</small><b>det g = 0</b><span>g⁻¹ UNDEFINED · FRONT NORMAL REMAINS</span></div>
-          <i aria-hidden="true">→</i>
-          <div class="reversed"><small>REVERSED SHEET</small><b>λ̄ &lt; 0</b><span>ORIENTED AREA SUBTRACTS · PACKET −1</span></div>
-        </div>
-      </section>
-
-      <section class="worked-example" aria-labelledby="example-title">
-        <div class="section-heading">
-          <span>03</span>
-          <div>
-            <p class="eyebrow">EXACT TWO-BAND MAP / ONE-TO-THREE PREIMAGES</p>
-            <h2 id="example-title">게임이 실제로 계산하는 fold와 세 원상</h2>
-          </div>
-        </div>
-
-        <div class="convention-lock">
-          <b>CONVENTION LOCK</b>
-          <p>
-            lower-band Bloch vector는 <code>n=−d̂</code>, orientation은 논문 Eq. (38)의
-            <code>λ̄=−½d̂·(∂<sub>x</sub>d̂×∂<sub>y</sub>d̂)</code>를 사용한다.
-            게임의 화면 좌표 <code>(u,v)</code>는 BZ chart origin만 0.1만큼 이동한 주기 좌표다.
-          </p>
-        </div>
-
-        <div class="formula-stack" data-source="src/game.js" data-quote="export function signedAreaDensity(u, v) {">
-          <div class="formula-block">
-            <small>SIGNED AREA DENSITY</small>
-            <p>λ̄(k)= [cos k<sub>x</sub>+cos k<sub>y</sub>−cos k<sub>x</sub>cos k<sub>y</sub>] / [2|d(k)|³]</p>
-          </div>
-          <div class="formula-block">
-            <small>FOLD EQUATION</small>
-            <p>cos k<sub>x</sub>+cos k<sub>y</sub>−cos k<sub>x</sub>cos k<sub>y</sub>=0</p>
-          </div>
-        </div>
-
-        <div class="lab-layout">
-          <div class="plot-column">
-            <div class="plot-toolbar">
-              <label for="u-slider">source slice <i>u</i><output id="u-value" for="u-slider">0.600</output></label>
-              <input id="u-slider" type="range" min="0" max="1" step="0.001" value="0.6">
+        <div class="scene-lab" data-source="src/game.js" data-quote="export function signedAreaDensity(u, v) {">
+          <div class="scene-controls">
+            <label for="scene-slider">고정된 <code>u=0.600</code>에서 source를 아래로 이동</label>
+            <input id="scene-slider" type="range" min="0.15" max="0.60" step="0.001" value="0.15">
+            <span><b>v=<output id="scene-v" for="scene-slider">0.150</output></b><small>왼쪽 cyan 점을 움직이는 것과 같다</small></span>
+            <div class="scene-presets" aria-label="노란 fold 통과의 세 순간">
+              <button type="button" data-scene-v="0.150">1 · 선 전 · λ̄&gt;0</button>
+              <button type="button" data-scene-v="0.266666666667">2 · 노란 선 · λ̄≈0</button>
+              <button type="button" data-scene-v="0.400">3 · 선 후 · λ̄&lt;0</button>
             </div>
-            <svg id="fold-plot" viewBox="0 0 760 420" role="img" aria-labelledby="plot-title plot-description">
-              <title id="plot-title">고정된 kx에서 ky에 따른 signed area density</title>
-              <desc id="plot-description">곡선이 0을 통과하는 점이 fold이고, 부호가 orientation을 나타낸다.</desc>
-              <g id="plot-grid"></g>
-              <path id="identity-line"></path>
-              <path id="target-line"></path>
-              <path id="fold-curve"></path>
-              <g id="critical-marks"></g>
-              <g id="root-marks"></g>
-              <g class="axis-labels" aria-hidden="true">
-                <text x="380" y="407">periodic source coordinate v</text>
-                <text x="18" y="210" transform="rotate(-90 18 210)">signed density λ̄</text>
-                <text x="712" y="199" class="target-label">λ̄ = 0</text>
-              </g>
-            </svg>
-            <p class="plot-caption" id="plot-caption">cyan은 λ̄&gt;0, coral은 λ̄&lt;0, amber 점은 Σ와의 교점이다.</p>
           </div>
-          <aside class="live-proof" aria-live="polite">
-            <div class="live-metrics">
-              <div><small>k<sub>x</sub>/π</small><strong id="amplitude-value">+1.000</strong></div>
-              <div><small>Σ intersections</small><strong id="multiplicity-value">2</strong></div>
-              <div><small>C model</small><strong id="degree-value">+1</strong></div>
-            </div>
-            <p id="live-conclusion">이 slice는 fold를 두 번 지나며 + → − → +로 바뀐다.</p>
-            <div class="table-wrap"><table><thead><tr><th>fold v</th><th>k<sub>y</sub>/π</th><th>λ̄</th></tr></thead><tbody id="root-table"></tbody></table></div>
+
+          <div class="scene-stage">
+            <figure>
+              <figcaption><b>LEFT · BZ BOARD</b><span>플레이어가 움직이는 점 <code>k</code></span></figcaption>
+              <svg id="scene-domain" viewBox="0 0 360 270" role="img" aria-label="Actual BZ fold and moving source point">
+                <rect class="scene-frame" x="22" y="18" width="316" height="226"></rect>
+                <path id="scene-negative-region"></path>
+                <path id="scene-fold-top"></path>
+                <path id="scene-fold-bottom"></path>
+                <g id="scene-cusps"></g>
+                <line id="scene-source-guide" x1="0" y1="0" x2="0" y2="0"></line>
+                <circle id="scene-source-point" r="7"></circle>
+                <text id="scene-source-label">YOU MOVE k</text>
+              </svg>
+            </figure>
+
+            <div class="scene-map-arrow" aria-hidden="true"><small>P(k)</small><b>→</b></div>
+
+            <figure>
+              <figcaption><b>RIGHT · BLOCH SPHERE</b><span>그 점의 image <code>n=−d̂</code></span></figcaption>
+              <svg id="scene-sphere" viewBox="0 0 360 270" role="img" aria-label="Mapped Bloch point and its fold-back trace">
+                <circle class="scene-sphere-body" cx="180" cy="132" r="105"></circle>
+                <ellipse class="scene-sphere-grid" cx="180" cy="132" rx="105" ry="34"></ellipse>
+                <ellipse class="scene-sphere-grid vertical" cx="180" cy="132" rx="40" ry="105"></ellipse>
+                <path id="scene-bloch-trace"></path>
+                <circle id="scene-bloch-point" r="7"></circle>
+                <text id="scene-bloch-label">P(k) ANSWERS</text>
+              </svg>
+            </figure>
+          </div>
+
+          <aside class="scene-receipt" aria-live="polite">
+            <div><small>손으로 잡은 source</small><b id="scene-k">k=(+1.00π,+0.10π)</b></div>
+            <div><small>오른쪽에서 보이는 image</small><b id="scene-n">n=(0.00,0.00,−1.00)</b></div>
+            <div><small>이 작은 BZ cell의 signed area density</small><b id="scene-density">λ̄=+0.000</b></div>
+            <div><small>metric의 면적 판별식</small><b id="scene-det">det g=λ̄²</b></div>
+            <div><small>같은 Bloch 점을 만드는 BZ source 수</small><b id="scene-multiplicity">1 source</b></div>
+            <p id="scene-event">이 cell이 만드는 oriented Bloch area는 양수로 더해진다.</p>
           </aside>
         </div>
 
-        <div class="worked-numbers" data-source="src/game.js" data-quote="export function findSourcesForState(target, samples = 128) {">
-          <p class="eyebrow">SOUTH-POLE BLOCH STATE · THREE PREIMAGES</p>
-          <div class="equation-line"><span>f⁻¹(n<sub>south</sub>)</span><b>={(π,0),(0,π),(π,π)}</b></div>
-          <div class="sign-sequence" aria-label="signed preimages positive positive negative summing to positive one">
-            <span class="positive">+½</span><i>+</i><span class="positive">+½</span><i>+</i><span class="negative">−1/18</span><i>⇒ sign sum</i><strong>+1</strong>
-          </div>
-          <p>
-            표시된 수는 각 source에서의 <code>λ̄</code> 값이고, degree/Chern의 원상 공식은 그 값 자체가 아니라 부호
-            <code>(+1)+(+1)+(−1)=+1</code>을 더한다. 반대 pole의 원상은 <code>(0,0)</code> 하나이며 부호는 +다.
-          </p>
+        <div class="scene-correspondence">
+          <article data-source="src/game.js" data-quote="export function bzCoordinates(source) {">
+            <small>손으로 쓰는 <code>k=(k<sub>x</sub>,k<sub>y</sub>)</code></small>
+            <b>왼쪽 cyan 점</b>
+            <p>플레이어가 직접 움직인다. 네 변을 넘으면 반대편으로 돌아온다.</p>
+          </article>
+          <article data-source="src/game.js" data-quote="export function mapToState(source) {">
+            <small><code>P(k)</code> 또는 <code>n(k)</code></small>
+            <b>오른쪽 white 점</b>
+            <p>왼쪽 점을 Bloch map에 넣은 결과다. 별도로 조종하지 않는다.</p>
+          </article>
+          <article data-source="src/game.js" data-quote="export function metricDeterminant(u, v) {">
+            <small><code>λ̄(k)</code>와 <code>det g=λ̄²</code></small>
+            <b>LIVE CELL CONTRIBUTION</b>
+            <p>현재 source 주변의 작은 면적이 Bloch sphere에서 더해지는지 빠지는지 보여준다.</p>
+          </article>
+          <article data-source="src/game.js" data-quote="this.signedArea += sign * area;">
+            <small>gate에서 얻는 <code>±1</code></small>
+            <b>authored packet</b>
+            <p><code>λ̄</code>의 실제 크기가 아니다. 게임을 위해 부호만 이산화한 값이다.</p>
+          </article>
         </div>
       </section>
 
-      <section class="correspondence-section" aria-labelledby="integral-title">
+      <section aria-labelledby="integral-title">
         <div class="section-heading">
-          <span>04</span>
-          <div><p class="eyebrow">WHAT IS INTEGRATED</p><h2 id="integral-title">손으로 적분한 양과 게임 meter의 대응</h2></div>
+          <span>02</span>
+          <div>
+            <p class="eyebrow">WHAT THE HAND CALCULATION INTEGRATES</p>
+            <h2 id="integral-title">적분영역은 궤적이 아니라 왼쪽 보드 전체다</h2>
+          </div>
         </div>
 
-        <ol class="pullback-calculation">
-          <li><span>1</span><div><b>논문의 signed area</b><p><code>dĀ=λ̄(k) dk<sub>x</sub>∧dk<sub>y</sub></code>. 적분 대상은 player trail이 아니라 BZ의 모든 2D cell이다.</p></div></li>
-          <li><span>2</span><div><b>Two-band identity</b><p><code>K<sub>G</sub>=2</code>, <code>Ω=λ̄</code>, <code>det g=Ω²</code>.</p></div></li>
-          <li><span>3</span><div><b>Generalized Gauss–Bonnet · Eq. (37)</b><p><code>(1/4π)∫K<sub>G</sub>dĀ=(1/2π)∫<sub>BZ</sub>λ̄ dk<sub>x</sub>dk<sub>y</sub>=C=1</code>.</p></div></li>
-          <li><span>4</span><div><b>Unsigned comparison</b><p><code>(1/2π)∫|λ̄|dk<sub>x</sub>dk<sub>y</sub>≈1.1889</code>. 겹친 sheet를 모두 양수로 세므로 Chern number와 다르다.</p></div></li>
-          <li><span>5</span><div><b>Game packet proxy</b><p><code>Q<sub>game</sub>=Σ ε<sub>j</sub>a<sub>j</sub></code>. gate는 BZ cell quadrature가 아니며, signed cancellation의 대수만 playable mission으로 압축한다.</p></div></li>
+        <p class="integral-answer">
+          각 BZ cell의 <strong>부호 있는 Bloch-sphere 면적</strong>을 모두 더한다:
+          <code>(1/2π)∫<sub>BZ</sub>λ̄(k)dk<sub>x</sub>dk<sub>y</sub>=C=1</code>.
+        </p>
+
+        <div class="cell-sum-figure">
+          <div class="cell-board" aria-label="The whole BZ board divided into cells">
+            <span class="sample-cell positive">+λ̄ΔA</span>
+            <span class="sample-cell negative">−λ̄ΔA</span>
+            <b>EVERY CELL IN THE BZ</b>
+          </div>
+          <i aria-hidden="true">→</i>
+          <div class="cell-limit">
+            <small>GRID SUM → CONTINUUM LIMIT</small>
+            <b>Σ λ̄(k<sub>ij</sub>)Δk<sub>x</sub>Δk<sub>y</sub> → ∫<sub>BZ</sub>λ̄(k)dk<sub>x</sub>dk<sub>y</sub></b>
+            <p>cyan cell은 더하고 coral cell은 뺀다. player trail은 어떤 cell을 방문했는지를 보여주는 1D 기록일 뿐이다.</p>
+          </div>
+        </div>
+
+        <div class="integral-vs-game">
+          <article>
+            <small>PAPER CALCULATION</small>
+            <h3>보드 전체의 연속 적분</h3>
+            <p><code>dĀ=λ̄(k)dk<sub>x</sub>∧dk<sub>y</sub></code>를 모든 <code>k</code>에서 적분한다. 게임 런타임은 이 적분을 점수로 누적하지 않는다.</p>
+          </article>
+          <article>
+            <small>GAME MECHANIC</small>
+            <h3>방문한 gate의 packet 합</h3>
+            <p><code>Q<sub>game</sub>=Σ<sub>j</sub>ε<sub>j</sub></code>. <code>+1−1+1−1+1=+1</code>처럼 부호 상쇄만 체험하게 한다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="amber-title">
+        <div class="section-heading">
+          <span>03</span>
+          <div>
+            <p class="eyebrow">WHAT HAPPENS AT THE AMBER GEOMETRY</p>
+            <h2 id="amber-title">노란 선과 삼각형에 들어가면 화면에서 무엇이 달라지는가</h2>
+          </div>
+        </div>
+
+        <div class="event-sequence">
+          <article>
+            <small>BEFORE THE LINE</small>
+            <b>작은 BZ patch가 + 면적을 만든다</b>
+            <p>LIVE CELL은 <code>λ̄&gt;0 · ADDS</code>를 표시한다. 이곳에 authored gate가 있으면 packet은 +1이다.</p>
+          </article>
+          <article class="amber-event" data-source="src/game.js" data-quote="export function fieldEffectAt(source, {">
+            <small>ON THE AMBER LINE</small>
+            <b>mapped patch가 순간적으로 선으로 눌린다</b>
+            <p><code>λ̄≈0</code>, <code>det g≈0</code>. white image의 국소 움직임이 접혀 돌아간다. damage도 pickup도 없고 packet sign도 없다.</p>
+          </article>
+          <article class="negative-event">
+            <small>AFTER CROSSING</small>
+            <b>작은 BZ patch가 − 면적을 만든다</b>
+            <p>LIVE CELL은 <code>λ̄&lt;0 · SUBTRACTS</code>를 표시한다. 같은 target state의 source 수가 1과 3 사이에서 바뀔 수 있다.</p>
+          </article>
+        </div>
+
+        <div class="cusp-event" data-source="src/game.js" data-quote="export function cuspPoints() {">
+          <i class="cusp-symbol" aria-hidden="true"></i>
+          <div>
+            <small>AT AN AMBER TRIANGLE</small>
+            <h3>노란 fold의 끝이 아니라, fold의 진행방향과 눌린 방향이 나란해지는 점이다</h3>
+            <p>
+              게임에서는 mapping compression이 급격해지고 cusp warning이 뜬다. damage·pickup·bonus score는 없다.
+              이 현상을 본 뒤 붙이는 수학적 이름이 <strong>Whitney cusp</strong>이고, 조건은 kernel direction이 <code>Σ</code>의 tangent가 되는 것이다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="math-title">
+        <div class="section-heading">
+          <span>04</span>
+          <div>
+            <p class="eyebrow">NOW NAME THE OBJECTS</p>
+            <h2 id="math-title">위 장면을 만드는 two-band map과 막히는 계산</h2>
+          </div>
+        </div>
+
+        <div class="formula-stack" data-source="src/game.js" data-quote="export function blochHamiltonianVector(source) {">
+          <div class="formula-block">
+            <small>HAMILTONIAN · PDF p.4</small>
+            <p>H(k)=d(k)·σ</p>
+            <p>d=(sin k<sub>x</sub>, sin k<sub>y</sub>, 1−cos k<sub>x</sub>−cos k<sub>y</sub>)</p>
+          </div>
+          <div class="formula-block">
+            <small>LOWER-BAND MAP</small>
+            <p>P(k)=½(I−σ·d̂(k))</p>
+            <p>f:T²<sub>BZ</sub>→S²<sub>Bloch</sub></p>
+          </div>
+        </div>
+
+        <div class="failure-grid">
+          <article>
+            <small>REGULAR CELL</small>
+            <h3><code>det g&gt;0</code></h3>
+            <p>두 source 방향이 Bloch surface의 두 독립 방향으로 간다. <code>g⁻¹</code>가 존재한다.</p>
+          </article>
+          <article>
+            <small>AMBER FOLD</small>
+            <h3><code>det g=λ̄²=0</code></h3>
+            <p>한 source 방향이 image에서 사라진다. <code>g⁻¹</code>가 없으므로 second-kind Christoffel symbol부터 통상 계산이 막힌다.</p>
+          </article>
+          <article class="replacement">
+            <small>PAPER'S CONSTRUCTION</small>
+            <h3><code>front, dĀ, κ<sub>s</sub></code></h3>
+            <p>역행렬을 복구하지 않는다. normal을 포함한 front, sign이 남는 area form, fold 위 singular-curvature term으로 적분 관계를 세운다.</p>
+          </article>
+        </div>
+
+        <ol class="atomic-derivation">
+          <li><span class="step-index">1</span><div><b>화면의 LIVE CELL 값</b><p><code>λ̄=−i tr(P[∂<sub>x</sub>P,∂<sub>y</sub>P])=[cos k<sub>x</sub>+cos k<sub>y</sub>−cos k<sub>x</sub>cos k<sub>y</sub>]/[2|d|³]</code>.</p></div></li>
+          <li><span class="step-index">2</span><div><b>노란 선</b><p><code>Σ={k:λ̄(k)=0}</code>. 여기서 <code>|λ̄|=√det g</code>지만 signed density <code>λ̄</code>는 선을 지나 연속적으로 부호를 바꾼다.</p></div></li>
+          <li><span class="step-index">3</span><div><b>논문의 global result</b><p><code>K<sub>G</sub>=2</code>이고 <code>Ω=λ̄</code>이므로 <code>(1/4π)∫K<sub>G</sub>dĀ=(1/2π)∫<sub>BZ</sub>λ̄ dk<sub>x</sub>dk<sub>y</sub>=C=1</code>.</p></div></li>
         </ol>
 
-        <div class="dimension-warning">
-          <b>PLAYER PATH IS NOT THE INTEGRAL</b>
-          <p>trail은 <code>γ:S¹→T²<sub>BZ</sub></code>인 1D controller 기록이다. 논문의 2-form 적분은 <code>T²<sub>BZ</sub></code> 전체에서 수행된다. 게임은 trail이 방문한 authored evidence packet만 더한다.</p>
+        <div class="worked-numbers" data-source="src/game.js" data-quote="export function findSourcesForState(target, samples = 128) {">
+          <p class="eyebrow">ONE WHITE SOUTH-POLE POINT · THREE CYAN SOURCES</p>
+          <div class="equation-line"><span>f⁻¹(n<sub>south</sub>)</span><b>={(π,0),(0,π),(π,π)}</b></div>
+          <div class="sign-sequence"><span class="positive">λ̄=+½</span><i>·</i><span class="positive">λ̄=+½</span><i>·</i><span class="negative">λ̄=−1/18</span></div>
+          <p>세 density의 크기를 packet처럼 더하지 않는다. degree formula에서는 source 세 개의 부호 <code>(+1)+(+1)+(−1)=+1</code>을 센다.</p>
         </div>
       </section>
 
       <section aria-labelledby="appendix-title">
         <div class="section-heading">
           <span>05</span>
-          <div><p class="eyebrow">APPENDIX A · A DIFFERENT PROBLEM</p><h2 id="appendix-title">“요상한 다항식”은 fold의 역행렬을 구하지 않는다</h2></div>
+          <div>
+            <p class="eyebrow">APPENDIX A · A DIFFERENT CALCULATION</p>
+            <h2 id="appendix-title">다항식은 노란 fold에서 <code>g⁻¹</code>를 만드는 장치가 아니다</h2>
+          </div>
         </div>
 
-        <div class="normal-form-boundary appendix-boundary">
-          <b>MATRIX POLYNOMIAL FOR AN EIGENPROJECTOR</b>
-          <p>
-            Appendix A의 목적은 eigenvector의 gauge 선택 없이 <code>P<sub>α</sub></code>와 그 미분을 Hamiltonian에서 계산하는 것이다.
-            quantum metric의 singular <code>g</code>를 invertible하게 만드는 polynomial은 논문에 없다.
-          </p>
-        </div>
-
-        <div class="formula-stack appendix-formulas">
+        <p class="direct-answer">
+          Appendix A가 계산하는 것은 <strong>eigenprojector <code>P<sub>α</sub></code></strong>다. Hamiltonian이 클 때 eigenvector의 gauge를 고르지 않고 <code>P<sub>α</sub></code>와 그 미분을 얻기 위해 쓴다.
+        </p>
+        <div class="formula-stack">
           <div class="formula-block">
-            <small>PDF p.8 · Eq. (A1)–(A2)</small>
+            <small>PROJECTOR</small>
             <p>P<sub>α</sub>=∏<sub>β≠α</sub>(H−E<sub>β</sub>I)/(E<sub>α</sub>−E<sub>β</sub>)</p>
-            <p>K<sub>α</sub>(H)=Σ<sub>k=0</sub><sup>N−1</sup>(−1)<sup>k</sup>e′<sub>k</sub>H<sup>N−1−k</sup></p>
           </div>
           <div class="formula-block">
-            <small>PDF p.9 · Eq. (A8)–(A10)</small>
-            <p>e′<sub>k</sub>=(1/k)Σ<sub>n=1</sub><sup>k</sup>(−1)<sup>n+1</sup>(p<sub>n</sub>−E<sub>α</sub><sup>n</sup>)e′<sub>k−n</sub></p>
+            <small>POLYNOMIAL NUMERATOR</small>
+            <p>K<sub>α</sub>(H)=Σ<sub>k=0</sub><sup>N−1</sup>(−1)<sup>k</sup>e′<sub>k</sub>H<sup>N−1−k</sup></p>
             <p>P<sub>α</sub>=K<sub>α</sub>/tr K<sub>α</sub></p>
           </div>
         </div>
-
-        <div class="table-wrap comparison-table">
-          <table>
-            <thead><tr><th>서로 다른 실패</th><th>실패하는 식</th><th>논문의 처리</th><th>게임 구현</th></tr></thead>
-            <tbody>
-              <tr><th>Quantum metric fold</th><td><code>det g=0 ⇒ g⁻¹</code> 없음</td><td>front, signed area, singular curvature, generalized GB</td><td><strong class="exact">핵심 mechanic</strong></td></tr>
-              <tr><th>Adapted-coordinate cusp</th><td>Appendix D의 inverse Jacobian과 선택 kernel field가 cusp에서 불연속/발산</td><td><code>κ<sub>s</sub></code>는 발산하지만 <code>ds→0</code>; line integral로 처리</td><td><strong class="conceptual">warning만</strong></td></tr>
-              <tr><th>Band-energy degeneracy</th><td><code>E<sub>α</sub>−E<sub>β</sub>=0</code>인 single-band projector formula</td><td>degenerate eigenspace 전체의 multi-band projector polynomial</td><td><strong class="absent">미구현</strong></td></tr>
-            </tbody>
-          </table>
+        <div class="normal-form-boundary">
+          <b>NO DIRECT GAME ENTITY</b>
+          <p>현재 게임은 two-band closed form <code>P=½(I−σ·d̂)</code>을 바로 사용한다. projector polynomial도, singular curvature <code>κ<sub>s</sub></code>의 수치 적분도 구현하지 않는다.</p>
         </div>
       </section>
 
-      <section class="honesty-section" aria-labelledby="boundary-title">
+      <section aria-labelledby="boundary-title">
         <div class="section-heading">
           <span>06</span>
-          <div><p class="eyebrow">PAPER ↔ RUNTIME BOUNDARY</p><h2 id="boundary-title">실제 구현과 proxy를 분리한 대응표</h2></div>
+          <div>
+            <p class="eyebrow">WHAT THE RUNTIME REALLY DOES</p>
+            <h2 id="boundary-title">화면·손계산·구현의 최종 대응</h2>
+          </div>
         </div>
 
         <div class="correspondence-table table-wrap">
           <table>
-            <thead><tr><th>논문/손계산의 대상</th><th>게임에서 보이는 것</th><th>구현 수준</th></tr></thead>
+            <thead><tr><th>화면에서 먼저 보이는 것</th><th>손계산의 대상</th><th>실제 구현</th></tr></thead>
             <tbody>
-              <tr data-calculation-object="bz-point" data-game-status="exact" data-source="src/game.js" data-quote="export function sourceFromBZ(kx, ky) {"><th><code>k∈T²<sub>BZ</sub></code></th><td>왼쪽 periodic DOMAIN의 cyan source</td><td><strong class="exact">정확</strong></td></tr>
-              <tr data-calculation-object="bloch-map" data-game-status="exact" data-source="src/game.js" data-quote="export function blochHamiltonianVector(source) {"><th><code>d(k), P(k)</code></th><td>오른쪽 Bloch sphere의 mapped image</td><td><strong class="exact">two-band 동치</strong></td></tr>
-              <tr data-calculation-object="signed-density" data-game-status="exact" data-source="src/game.js" data-quote="export function signedAreaDensity(u, v) {"><th><code>λ̄=Ω</code></th><td>HUD의 λ̄ 수치, cyan/coral orientation</td><td><strong class="exact">정확</strong></td></tr>
-              <tr data-calculation-object="metric-determinant" data-game-status="exact" data-source="src/game.js" data-quote="export function metricDeterminant(u, v) {"><th><code>det g=λ̄²</code></th><td>amber fold에서 0이 되는 area-density meter</td><td><strong class="exact">정확</strong></td></tr>
-              <tr data-calculation-object="regularized-inverse" data-game-status="not-implemented"><th><code>(g+λ<sub>reg</sub>I)⁻¹</code></th><td>근사 응답이 필요할 때 가능한 ridge 우회</td><td><strong class="absent">미구현·정확값 아님</strong></td></tr>
-              <tr data-calculation-object="singular-curve" data-game-status="exact"><th><code>Σ={det g=0}</code></th><td>왼쪽 amber closed curve와 오른쪽 critical-value curve</td><td><strong class="exact">정확</strong></td></tr>
-              <tr data-calculation-object="cusps" data-game-status="exact"><th>네 Whitney cusp</th><td>amber triangle 네 개와 proximity warning</td><td><strong class="exact">정확한 source 위치</strong></td></tr>
-              <tr data-calculation-object="multiplicity" data-game-status="exact" data-source="src/game.js" data-quote="export function sourceMultiplicity(source) {"><th><code>|f⁻¹(y)|=1 또는 3</code></th><td>VISIBLE SOURCES meter와 MISSION 03</td><td><strong class="exact">수치 역탐색</strong></td></tr>
-              <tr data-calculation-object="front" data-game-status="conceptual"><th><code>(f,N)</code> front</th><td>fold에서도 Bloch sphere와 normal-oriented rendering이 유지됨</td><td><strong class="conceptual">관계만</strong></td></tr>
-              <tr data-calculation-object="singular-curvature" data-game-status="not-computed"><th><code>κ<sub>s</sub></code></th><td>cusp warning 문구만 존재</td><td><strong class="absent">수치 미계산</strong></td></tr>
-              <tr data-calculation-object="chern-integral" data-game-status="verified-not-played"><th><code>(1/2π)∫<sub>BZ</sub>λ̄=C</code></th><td>테스트와 사양서의 C=1 model receipt</td><td><strong class="control">결정론적 검산</strong></td></tr>
-              <tr data-calculation-object="packet-score" data-game-status="proxy" data-source="src/game.js" data-quote="this.signedArea += sign * area;"><th><code>Q<sub>game</sub></code></th><td>수집 gate의 ± packet 합</td><td><strong class="proxy">적분 proxy</strong></td></tr>
-              <tr data-calculation-object="projector-polynomial" data-game-status="not-implemented"><th><code>K<sub>α</sub>(H)</code></th><td>직접 대응 없음; two-band closed form을 사용</td><td><strong class="absent">미구현</strong></td></tr>
+              <tr data-calculation-object="bz-domain" data-game-status="exact"><th>왼쪽 보드 전체</th><td><code>T²<sub>BZ</sub></code>, 적분영역</td><td><strong class="exact">periodic domain 정확</strong></td></tr>
+              <tr data-calculation-object="bz-point" data-game-status="exact" data-source="src/game.js" data-quote="export function sourceFromBZ(kx, ky) {"><th>cyan source 점</th><td><code>k=(k<sub>x</sub>,k<sub>y</sub>)</code></td><td><strong class="exact">정확</strong></td></tr>
+              <tr data-calculation-object="bloch-map" data-game-status="exact"><th>white Bloch 점</th><td><code>P(k)</code>, <code>n=−d̂</code></td><td><strong class="exact">two-band 동치</strong></td></tr>
+              <tr data-calculation-object="signed-density" data-game-status="exact"><th>LIVE CELL의 <code>λ̄</code></th><td>signed area density <code>Ω</code></td><td><strong class="exact">정확한 연속값</strong></td></tr>
+              <tr data-calculation-object="metric-determinant" data-game-status="exact"><th>노란 선에서 0</th><td><code>det g=λ̄²</code></td><td><strong class="exact">정확</strong></td></tr>
+              <tr data-calculation-object="singular-curve" data-game-status="exact" data-source="src/game.js" data-quote="export function foldBranchesAtU(u) {"><th>닫힌 amber 선</th><td><code>Σ={det g=0}</code></td><td><strong class="exact">정확</strong></td></tr>
+              <tr data-calculation-object="cusps" data-game-status="exact"><th>amber triangle 네 개</th><td><code>(±π/2,±π/2)</code> Whitney cusps</td><td><strong class="exact">위치 정확</strong></td></tr>
+              <tr data-calculation-object="multiplicity" data-game-status="exact" data-source="src/game.js" data-quote="export function sourceMultiplicity(source) {"><th>VISIBLE SOURCES 1×/3×</th><td><code>|f⁻¹(y)|</code></td><td><strong class="exact">수치 역탐색</strong></td></tr>
+              <tr data-calculation-object="chern-integral" data-game-status="verified-not-played"><th>SPEC의 C=1 receipt</th><td><code>(1/2π)∫<sub>BZ</sub>λ̄=C</code></td><td><strong class="control">테스트 검산, 점수 아님</strong></td></tr>
+              <tr data-calculation-object="packet-score" data-game-status="proxy"><th>아래 packet meter</th><td><code>Σ ε<sub>j</sub></code></td><td><strong class="proxy">부호 상쇄 proxy</strong></td></tr>
+              <tr data-calculation-object="front" data-game-status="conceptual"><th>fold에서도 유지되는 sphere</th><td><code>(f,N)</code> front</td><td><strong class="conceptual">관계만 표시</strong></td></tr>
+              <tr data-calculation-object="singular-curvature" data-game-status="not-computed"><th>cusp warning</th><td><code>κ<sub>s</sub></code></td><td><strong class="absent">수치 미계산</strong></td></tr>
+              <tr data-calculation-object="projector-polynomial" data-game-status="not-implemented"><th>화면 대응 없음</th><td><code>K<sub>α</sub>(H)</code></td><td><strong class="absent">미구현</strong></td></tr>
             </tbody>
           </table>
-        </div>
-
-        <div class="verdict">
-          <p class="eyebrow">IMPLEMENTATION SUMMARY</p>
-          <blockquote>
-            Quantum Fold는 논문의 two-band <code>T²<sub>BZ</sub>→S²<sub>Bloch</sub></code> map,
-            <strong>metric rank loss, four Whitney cusps, 1↔3 preimages, signed Berry area, Chern integer +1</strong>을 직접 계산한다.
-            mission score는 full BZ integral이 아니라 그 부호 상쇄를 조작 가능하게 만든 authored packet sum이다.
-          </blockquote>
         </div>
       </section>
     </main>
 
     <footer>
-      <a href="./index.html">PLAY QUANTUM FOLD <span aria-hidden="true">→</span></a>
-      <p>EXACT MODEL: TWO-BAND BZ TORUS → BLOCH SPHERE · OBSTRUCTION: det g=0 · GLOBAL RESULT: CHERN +1</p>
+      <a href="./index.html">MOVE THE BZ POINT <span aria-hidden="true">→</span></a>
+      <p>LEFT BOARD = INTEGRATION DOMAIN · WHITE POINT = P(k) · LIVE CELL = λ̄(k) · PACKET METER = PROXY</p>
     </footer>
 
     <script type="module" src="./src/philosophy.js"></script>
