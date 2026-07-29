@@ -1,5 +1,6 @@
 import {
   FIXED_STEP,
+  bzCoordinates,
   clamp,
   mapToState,
   sourceFromBZ,
@@ -38,6 +39,41 @@ function stateAt(kx, ky) {
   return mapToState(sourceFromBZ(kx, ky));
 }
 
+function hamiltonianJet(kx, ky) {
+  const d = {
+    x: Math.sin(kx),
+    y: Math.sin(ky),
+    z: 1 - Math.cos(kx) - Math.cos(ky),
+  };
+  const dx = { x: Math.cos(kx), y: 0, z: Math.sin(kx) };
+  const dy = { x: 0, y: Math.cos(ky), z: Math.sin(ky) };
+  const dyy = { x: 0, y: -Math.sin(ky), z: Math.cos(ky) };
+  return { d, dx, dy, dyy, radius: Math.hypot(d.x, d.y, d.z) };
+}
+
+function normalizedFirstDerivative(d, derivative, radius) {
+  const contraction = vectorDot(d, derivative);
+  return vectorAdd(
+    vectorScale(derivative, -1 / radius),
+    vectorScale(d, contraction / radius ** 3),
+  );
+}
+
+function normalizedSecondDerivative(d, first, second, radius) {
+  const contraction = vectorDot(d, first);
+  const contractionDerivative = vectorDot(first, first) + vectorDot(d, second);
+  return vectorAdd(
+    vectorAdd(
+      vectorScale(second, -1 / radius),
+      vectorScale(first, (2 * contraction) / radius ** 3),
+    ),
+    vectorAdd(
+      vectorScale(d, contractionDerivative / radius ** 3),
+      vectorScale(d, (-3 * contraction ** 2) / radius ** 5),
+    ),
+  );
+}
+
 function firstDifference(kx, ky, axis, h) {
   const plus = stateAt(kx + (axis === "x" ? h : 0), ky + (axis === "y" ? h : 0));
   const minus = stateAt(kx - (axis === "x" ? h : 0), ky - (axis === "y" ? h : 0));
@@ -55,13 +91,7 @@ function secondDifference(kx, ky, axis, h) {
   return vectorScale(vectorAdd(vectorAdd(plus, minus), vectorScale(center, -2)), 1 / (h * h));
 }
 
-export function probeGeometryAt(source, h = DIFFERENCE_STEP) {
-  const kx = Math.PI * 2 * (((source.u - 0.1 + 0.5) % 1 + 1) % 1 - 0.5);
-  const ky = Math.PI * 2 * (((source.v - 0.1 + 0.5) % 1 + 1) % 1 - 0.5);
-  const state = stateAt(kx, ky);
-  const tangentX = firstDifference(kx, ky, "x", h);
-  const tangentY = firstDifference(kx, ky, "y", h);
-  const secondY = secondDifference(kx, ky, "y", h);
+function geometryFromTangents(source, kx, ky, state, tangentX, tangentY, secondY, jet = null) {
   const gxx = 0.5 * vectorDot(tangentX, tangentX);
   const gxy = 0.5 * vectorDot(tangentX, tangentY);
   const gyy = 0.5 * vectorDot(tangentY, tangentY);
@@ -90,7 +120,32 @@ export function probeGeometryAt(source, h = DIFFERENCE_STEP) {
       xy: -gxy / determinant,
       yy: gxx / determinant,
     } : null,
+    jet,
   };
+}
+
+
+export function probeGeometryAt(source) {
+  const { kx, ky } = bzCoordinates(source);
+  const jet = hamiltonianJet(kx, ky);
+  const state = vectorScale(jet.d, -1 / jet.radius);
+  const tangentX = normalizedFirstDerivative(jet.d, jet.dx, jet.radius);
+  const tangentY = normalizedFirstDerivative(jet.d, jet.dy, jet.radius);
+  const secondY = normalizedSecondDerivative(jet.d, jet.dy, jet.dyy, jet.radius);
+  return geometryFromTangents(source, kx, ky, state, tangentX, tangentY, secondY, {
+    ...jet,
+    dotX: vectorDot(jet.d, jet.dx),
+    dotY: vectorDot(jet.d, jet.dy),
+  });
+}
+
+export function finiteDifferenceGeometryAt(source, h = DIFFERENCE_STEP) {
+  const { kx, ky } = bzCoordinates(source);
+  const state = stateAt(kx, ky);
+  const tangentX = firstDifference(kx, ky, "x", h);
+  const tangentY = firstDifference(kx, ky, "y", h);
+  const secondY = secondDifference(kx, ky, "y", h);
+  return geometryFromTangents(source, kx, ky, state, tangentX, tangentY, secondY);
 }
 
 const WAVE_BLUEPRINTS = [
@@ -98,34 +153,75 @@ const WAVE_BLUEPRINTS = [
     id: "regular",
     number: "01",
     kicker: "FIRST DERIVATIVES",
-    title: "Cross two tangent rounds to make area",
-    brief: "Tag the same drone with ∂xP and ∂yP. Their oriented parallelogram becomes impact damage.",
+    title: "Calculate the derivative. Shoot its value.",
+    brief: "The requested operator is loaded automatically. Compute its displayed vector, then aim at that value; only a correct answer rewrites P into ∂P.",
     enemies: [
-      { id: "regular-a", label: "REGULAR CELL", kx: 0, ky: 0, x: 0.5, y: 0.31, hp: 150 },
+      { id: "regular-a", label: "REGULAR CELL", kx: 0, ky: 0, x: 0.5, y: 0.31, hp: 126 },
     ],
   },
   {
     id: "orientation",
     number: "02",
     kicker: "ORIENTATION FLIP",
-    title: "Same impact, opposite orientation",
-    brief: "The coral drone carries λ̄<0. Damage uses |λ̄|; the sign records which way its mapped area faces.",
+    title: "Same rule, opposite orientation",
+    brief: "Compute both derivative vectors on each sheet. Their triple product decides the orientation sign; the answer choices, not the firing order, are the test.",
     enemies: [
-      { id: "positive-b", label: "+ SHEET", kx: Math.PI, ky: 0, x: 0.32, y: 0.32, hp: 132 },
-      { id: "negative-b", label: "− SHEET", kx: Math.PI, ky: Math.PI, x: 0.68, y: 0.32, hp: 92 },
+      { id: "positive-b", label: "+ SHEET", kx: Math.PI, ky: 0, x: 0.32, y: 0.32, hp: 126 },
+      { id: "negative-b", label: "− SHEET", kx: Math.PI, ky: Math.PI, x: 0.68, y: 0.32, hp: 51 },
     ],
   },
   {
     id: "fold",
     number: "03",
     kicker: "RANK DROP",
-    title: "First derivatives fail. Differentiate again.",
-    brief: "At k=(π,π/3), ∂yP vanishes. Force the 0-damage pair, then combine ∂xP with ∂y²P to break the fold core.",
+    title: "Find the vanished tangent, then the first nonzero jet.",
+    brief: "At k*=(π,π/3), shoot the computed values of ∂xn and ∂yn. After ∂yn=0 blocks g⁻¹, compute and shoot ∂y²n.",
     enemies: [
-      { id: "fold-core", label: "FOLD CORE", kx: Math.PI, ky: Math.PI / 3, x: 0.5, y: 0.29, hp: 250, fold: true },
+      { id: "fold-core", label: "FOLD CORE", kx: Math.PI, ky: Math.PI / 3, x: 0.5, y: 0.29, hp: 104, fold: true },
     ],
   },
 ];
+
+const ANSWER_SETS = {
+  "regular-a": {
+    x: { prompt: "At k=(0,0), which value is ∂ₓn?", values: ["(0, −1, 0)", "(−1, 0, 0)", "(1, 0, 0)"], correct: 1 },
+    y: { prompt: "Now compute ∂ᵧn at k=(0,0).", values: ["(0, 1, 0)", "(−1, 0, 0)", "(0, −1, 0)"], correct: 2 },
+  },
+  "positive-b": {
+    x: { prompt: "At k=(π,0), which value is ∂ₓn?", values: ["(1, 0, 0)", "(−1, 0, 0)", "(0, −1, 0)"], correct: 0 },
+    y: { prompt: "At k=(π,0), which value is ∂ᵧn?", values: ["(0, 1, 0)", "(0, −1, 0)", "(1, 0, 0)"], correct: 1 },
+  },
+  "negative-b": {
+    x: { prompt: "At k=(π,π), which value is ∂ₓn?", values: ["(−1/3, 0, 0)", "(1/3, 0, 0)", "(1, 0, 0)"], correct: 1 },
+    y: { prompt: "At k=(π,π), which value is ∂ᵧn?", values: ["(0, −1/3, 0)", "(0, 1/3, 0)", "(1/3, 0, 0)"], correct: 1 },
+  },
+  "fold-core": {
+    x: { prompt: "At k*=(π,π/3), compute ∂ₓn.", values: ["(1/√3, 0, 0)", "(−1/√3, 0, 0)", "(0, 0, 0)"], correct: 0 },
+    y: { prompt: "At k*=(π,π/3), compute ∂ᵧn.", values: ["(0, −1/2, −√3/2)", "(0, 0, 0)", "(0, 1/2, −1/(2√3))"], correct: 1 },
+    limit: { prompt: "Rank dropped. Which value is ∂ᵧ²n?", values: ["(0, −1/2, 1/(2√3))", "(0, 1/2, −1/(2√3))", "(1/√3, 0, 0)"], correct: 1 },
+    lambda: { prompt: "Now compute λ̄ᵧ=½n·(∂ₓn×∂ᵧ²n).", values: ["−1/6", "+1/6", "0"], correct: 0 },
+  },
+};
+
+const CHOICE_X = [0.24, 0.5, 0.76];
+
+function choicesFor(enemy, stage) {
+  const question = ANSWER_SETS[enemy.id]?.[stage];
+  if (!question) return [];
+  return question.values.map((label, index) => ({
+    id: `${enemy.id}-${stage}-${index}`,
+    label,
+    correct: index === question.correct,
+    x: CHOICE_X[index],
+    y: 0.59,
+    radius: 0.052,
+  }));
+}
+
+function setQuestion(enemy, stage) {
+  enemy.questionStage = stage;
+  enemy.choices = choicesFor(enemy, stage);
+}
 
 export function shooterWaves() {
   return WAVE_BLUEPRINTS.map((wave) => ({
@@ -136,17 +232,20 @@ export function shooterWaves() {
 
 function makeEnemy(blueprint) {
   const source = sourceFromBZ(blueprint.kx, blueprint.ky);
-  return {
+  const enemy = {
     ...blueprint,
     source,
     geometry: probeGeometryAt(source),
     maxHp: blueprint.hp,
     probes: { x: false, y: false },
+    operations: { x: 0, y: 0, limit: 0, contract: 0 },
     rankDropSeen: false,
     dead: false,
     phase: 0,
     radius: blueprint.fold ? 0.084 : 0.064,
   };
+  setQuestion(enemy, PROBE_X);
+  return enemy;
 }
 
 function enemiesForWave(waves, index) {
@@ -239,12 +338,14 @@ function resolveFirstDerivativePair(state, enemy) {
 export function applyProbeHit(state, enemy, probe) {
   if (!enemy || enemy.dead) return state;
   if (probe === PROBE_X) {
+    enemy.operations.x += 1;
     enemy.probes.x = true;
     state.events.push({ type: "probe", probe, enemy: enemy.id, x: enemy.x, y: enemy.y });
     resolveFirstDerivativePair(state, enemy);
     return state;
   }
   if (probe === PROBE_Y) {
+    enemy.operations.y += 1;
     enemy.probes.y = true;
     state.events.push({ type: "probe", probe, enemy: enemy.id, x: enemy.x, y: enemy.y });
     resolveFirstDerivativePair(state, enemy);
@@ -252,12 +353,75 @@ export function applyProbeHit(state, enemy, probe) {
   }
   if (probe === PROBE_LIMIT) {
     if (state.limitUnlocked && enemy.rankDropSeen && enemy.probes.x) {
+      enemy.operations.limit = Math.max(1, enemy.operations.limit);
+      enemy.operations.contract += 1;
       enemy.probes.x = false;
       damageEnemy(state, enemy, limitDamage(enemy.geometry), "limit");
     } else {
       state.combo = 0;
       state.events.push({ type: "glance", probe, enemy: enemy.id, x: enemy.x, y: enemy.y });
     }
+  }
+  return state;
+}
+
+export function currentShooterQuestion(state) {
+  const enemy = currentShooterTarget(state);
+  if (!enemy) return null;
+  const specification = ANSWER_SETS[enemy.id]?.[enemy.questionStage];
+  return specification ? {
+    enemy: enemy.id,
+    stage: enemy.questionStage,
+    expectedProbe: enemy.questionStage === "lambda" ? PROBE_LIMIT : enemy.questionStage,
+    prompt: specification.prompt,
+    choices: enemy.choices.map((choice) => ({ ...choice })),
+  } : null;
+}
+
+export function applyAnswerHit(state, enemy, choice, probe) {
+  if (!enemy || enemy.dead || !choice) return state;
+  const expectedProbe = enemy.questionStage === "lambda" ? PROBE_LIMIT : enemy.questionStage;
+  if (probe !== expectedProbe || !choice.correct) {
+    state.combo = 0;
+    state.events.push({
+      type: "wrong-answer",
+      enemy: enemy.id,
+      probe,
+      expectedProbe,
+      label: choice.label,
+      x: choice.x,
+      y: choice.y,
+    });
+    return state;
+  }
+
+  const completedStage = enemy.questionStage;
+  state.events.push({
+    type: "correct-answer",
+    enemy: enemy.id,
+    probe,
+    label: choice.label,
+    x: choice.x,
+    y: choice.y,
+  });
+  if (completedStage === PROBE_LIMIT) {
+    enemy.operations.limit = 1;
+    setQuestion(enemy, "lambda");
+    return state;
+  }
+  applyProbeHit(state, enemy, probe);
+  if (enemy.dead) {
+    enemy.choices = [];
+  } else if (completedStage === PROBE_X) {
+    setQuestion(enemy, PROBE_Y);
+  } else if (completedStage === PROBE_Y && enemy.rankDropSeen) {
+    setQuestion(enemy, PROBE_LIMIT);
+  } else if (completedStage === PROBE_Y) {
+    setQuestion(enemy, PROBE_X);
+  } else if (completedStage === "lambda") {
+    enemy.choices = [];
+  } else {
+    setQuestion(enemy, PROBE_X);
   }
   return state;
 }
@@ -317,11 +481,23 @@ function updateBullets(state, dt) {
     bullet.x += bullet.vx * dt;
     bullet.y += bullet.vy * dt;
     bullet.life -= dt;
+    const questionTarget = currentShooterTarget(state);
+    if (questionTarget) {
+      for (const choice of questionTarget.choices) {
+        if (Math.hypot(bullet.x - choice.x, bullet.y - choice.y) <= choice.radius + bullet.radius) {
+          bullet.life = -1;
+          applyAnswerHit(state, questionTarget, choice, bullet.probe);
+          break;
+        }
+      }
+    }
+    if (bullet.life <= 0) continue;
     for (const enemy of state.enemies) {
       if (enemy.dead) continue;
       if (Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y) <= enemy.radius + bullet.radius) {
         bullet.life = -1;
-        applyProbeHit(state, enemy, bullet.probe);
+        state.combo = 0;
+        state.events.push({ type: "answer-shield", enemy: enemy.id, x: enemy.x, y: enemy.y });
         break;
       }
     }
@@ -396,7 +572,9 @@ export function shooterEvidence(state) {
       determinant: target.geometry.determinant,
       inverseAvailable: target.geometry.inverseAvailable,
       probes: { ...target.probes },
+      operations: { ...target.operations },
       rankDropSeen: target.rankDropSeen,
+      questionStage: target.questionStage,
     } : null,
   };
 }

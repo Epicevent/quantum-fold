@@ -27,8 +27,12 @@ import {
   stepSource,
 } from "../src/game.js";
 import {
+  applyAnswerHit,
   applyProbeHit,
   createShooterState,
+  currentShooterQuestion,
+  currentShooterTarget,
+  finiteDifferenceGeometryAt,
   probeGeometryAt,
   shooterEvidence,
   sourceForFoldDrill,
@@ -527,6 +531,24 @@ test("shooter probes recover the signed area density and det g = lambda squared"
   }
 });
 
+test("the displayed chain-rule derivatives agree with an independent finite-difference route", () => {
+  for (const [kx, ky] of [
+    [0, 0],
+    [Math.PI, 0],
+    [Math.PI, Math.PI],
+    [Math.PI, Math.PI / 3],
+  ]) {
+    const source = sourceFromBZ(kx, ky);
+    const analytic = probeGeometryAt(source);
+    const finite = finiteDifferenceGeometryAt(source);
+    for (const key of ["x", "y", "z"]) {
+      assert.ok(Math.abs(analytic.tangentX[key] - finite.tangentX[key]) < 1e-7);
+      assert.ok(Math.abs(analytic.tangentY[key] - finite.tangentY[key]) < 1e-7);
+      assert.ok(Math.abs(analytic.secondY[key] - finite.secondY[key]) < 1e-6);
+    }
+  }
+});
+
 test("the fold target makes first derivative damage fail and exposes the next derivative", () => {
   const geometry = probeGeometryAt(sourceForFoldDrill());
   assert.ok(geometry.gyy < 1e-12);
@@ -594,6 +616,64 @@ test("shooter fixed-step replay is deterministic", () => {
   assert.deepEqual(left.bullets, right.bullets);
 });
 
+test("wrong values cannot advance the formula and correct values produce the decisive fold answer", () => {
+  const state = createShooterState();
+  startShooter(state);
+  const noInput = { moveX: 0, moveY: 0, aimX: 0, aimY: -1, fireX: false, fireY: false, fireLimit: false };
+  const answerCorrectly = () => {
+    const question = currentShooterQuestion(state);
+    const target = currentShooterTarget(state);
+    const correct = question.choices.find((choice) => choice.correct);
+    applyAnswerHit(state, target, correct, question.expectedProbe);
+  };
+  const advanceWave = () => {
+    for (let frame = 0; frame < 150; frame += 1) stepShooter(state, noInput);
+  };
+
+  const openingQuestion = currentShooterQuestion(state);
+  assert.equal(openingQuestion.prompt, "At k=(0,0), which value is ∂ₓn?");
+  const wrong = openingQuestion.choices.find((choice) => !choice.correct);
+  applyAnswerHit(state, currentShooterTarget(state), wrong, openingQuestion.expectedProbe);
+  assert.equal(currentShooterTarget(state).questionStage, "x");
+  assert.deepEqual(currentShooterTarget(state).operations, { x: 0, y: 0, limit: 0, contract: 0 });
+
+  answerCorrectly();
+  assert.equal(currentShooterQuestion(state).stage, "y");
+  answerCorrectly();
+  assert.equal(currentShooterTarget(state), null);
+  advanceWave();
+  assert.equal(state.wave.id, "orientation");
+
+  answerCorrectly();
+  answerCorrectly();
+  assert.equal(currentShooterTarget(state).id, "negative-b");
+  answerCorrectly();
+  answerCorrectly();
+  advanceWave();
+  assert.equal(state.wave.id, "fold");
+
+  answerCorrectly();
+  assert.equal(currentShooterQuestion(state).stage, "y");
+  answerCorrectly();
+  const fold = currentShooterTarget(state);
+  assert.equal(fold.rankDropSeen, true);
+  assert.equal(fold.hp, 104, "the correct zero tangent diagnoses rank loss but deals no damage");
+  assert.equal(currentShooterQuestion(state).stage, "limit");
+  assert.equal(currentShooterQuestion(state).choices.find((choice) => choice.correct).label, "(0, 1/2, −1/(2√3))");
+  answerCorrectly();
+  assert.equal(fold.hp, 104, "the second jet is revealed before the final contraction is answered");
+  assert.equal(currentShooterQuestion(state).stage, "lambda");
+  assert.equal(currentShooterQuestion(state).choices.find((choice) => choice.correct).label, "−1/6");
+  const wrongScalar = currentShooterQuestion(state).choices.find((choice) => !choice.correct);
+  applyAnswerHit(state, fold, wrongScalar, currentShooterQuestion(state).expectedProbe);
+  assert.equal(fold.hp, 104);
+  assert.equal(currentShooterQuestion(state).stage, "lambda");
+  answerCorrectly();
+  assert.ok(Math.abs(fold.geometry.lambdaV + 1 / 6) < 1e-12);
+  advanceWave();
+  assert.equal(state.status, "complete");
+});
+
 test("the added shooter is a separate playable mode with an explicit calculation contract", () => {
   const root = resolve(import.meta.dirname, "..");
   const index = readFileSync(resolve(root, "index.html"), "utf8");
@@ -609,10 +689,17 @@ test("the added shooter is a separate playable mode with an explicit calculation
     "√det g = |λ̄|",
     "0 DAMAGE · g<sup>−1</sup> LOCKED",
     "∂<sub>y</sub>²P",
+    "At k*=(π,π/3): evaluate",
+    "∂<sub>y</sub>n=(0,0,0)",
+    "λ̄<sub>y</sub>=½n·(∂<sub>x</sub>n×∂<sub>y</sub>²n)=−1/6",
   ]) {
     assert.ok(shooter.includes(requiredText), `shooter screen should expose: ${requiredText}`);
   }
   assert.ok(renderer.includes("THE DAMAGE IS THE CALCULATION") || shooter.includes("THE DAMAGE IS THE CALCULATION"));
+  assert.ok(renderer.includes("drawAnswerChoices"));
+  assert.ok(renderer.includes("CORRECT ${event.label}"));
+  assert.match(shooter, /id="target-lambda">λ̄=PENDING/);
+  assert.match(shooter, /id="target-limit">λ̄<sub>y<\/sub>=PENDING/);
   assert.ok(philosophy.includes("shooter는 “어느 미분이 사라져 역행렬이 막히며 다음 미분이 무엇을 복구하는가”"));
   assert.ok(philosophy.includes("singular curvature 적분 자체를 shooter damage라고 부르지는 않는다"));
 });

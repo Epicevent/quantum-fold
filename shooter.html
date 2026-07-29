@@ -32,8 +32,8 @@
       <section class="strike-directive" aria-live="polite">
         <div>
           <span class="strike-kicker">CURRENT FIRE PROTOCOL</span>
-          <h1 id="strike-title">Cross two tangent rounds to make area</h1>
-          <p id="strike-brief">Tag the same drone with ∂xP and ∂yP. Their oriented parallelogram becomes impact damage.</p>
+          <h1 id="strike-title">Calculate the derivative. Shoot its value.</h1>
+          <p id="strike-brief">The requested operator is loaded automatically. Compute its displayed vector, then aim at that value; only a correct answer rewrites P into ∂P.</p>
         </div>
         <div class="strike-score">
           <small>COMPUTATION SCORE</small>
@@ -42,17 +42,25 @@
         </div>
       </section>
 
+      <section class="calculation-target" aria-label="Final calculation target">
+        <div>
+          <small>THE QUESTION THIS RUN MUST ANSWER</small>
+          <strong>At k*=(π,π/3), compute ∂<sub>x</sub>P, ∂<sub>y</sub>P and g. If g<sup>−1</sup> fails, find the first nonzero transverse response.</strong>
+        </div>
+        <output id="answer-status">UNRESOLVED · REACH THE FOLD CORE</output>
+      </section>
+
       <section class="probe-rack" aria-label="Derivative ammunition">
         <article data-probe="x">
-          <span class="probe-key">LMB · J</span>
-          <small>FIRST ROUND</small>
+          <span class="probe-key">AUTO LOAD 1</span>
+          <small>VALUE QUESTION</small>
           <strong>∂<sub>x</sub>P</strong>
           <p>records the first tangent</p>
         </article>
         <i aria-hidden="true">×</i>
         <article data-probe="y">
-          <span class="probe-key">RMB · K</span>
-          <small>FIRST ROUND</small>
+          <span class="probe-key">AUTO LOAD 2</span>
+          <small>VALUE QUESTION</small>
           <strong>∂<sub>y</sub>P</strong>
           <p>closes the area pair</p>
         </article>
@@ -65,21 +73,71 @@
         </article>
         <i aria-hidden="true">/</i>
         <article data-probe="limit" id="limit-card" aria-disabled="true">
-          <span class="probe-key">SPACE · L</span>
-          <small>LIMIT ROUND</small>
+          <span class="probe-key">AFTER RANK DROP</span>
+          <small>VALUE QUESTION</small>
           <strong>∂<sub>y</sub>²P</strong>
           <p id="limit-status">locked until rank drops</p>
         </article>
+      </section>
+
+      <section class="operator-workbench" aria-label="Live symbolic differentiation" aria-live="polite">
+        <div class="operator-head">
+          <span><i></i> LIVE EXPRESSION</span>
+          <small>THE OPERATOR SHOT MUST REWRITE THE FORMULA BEFORE IT CAN DEAL DAMAGE</small>
+        </div>
+        <div class="operator-chain">
+          <article class="expression-source">
+            <span class="operator-badge">INPUT</span>
+            <small>PROJECTOR IN BLOCH COORDINATES</small>
+            <strong>P(k)=½[I+n(k)·σ]</strong>
+            <code>n=−d/r, &nbsp;r=|d|</code>
+            <code>d(k)=(sin k<sub>x</sub>, sin k<sub>y</sub>, 1−cos k<sub>x</sub>−cos k<sub>y</sub>)</code>
+            <output id="formula-source">d(k)=(0, 0, −1), r=1</output>
+          </article>
+          <i class="chain-arrow" aria-hidden="true">→</i>
+          <article class="operator-step operator-x" id="operator-x-step" data-state="waiting">
+            <span class="operator-badge">∂<sub>x</sub></span>
+            <small>CHAIN RULE</small>
+            <strong>∂<sub>x</sub>P=½(∂<sub>x</sub>n·σ)</strong>
+            <code>∂<sub>x</sub>n=−d<sub>x</sub>/r+d(d·d<sub>x</sub>)/r³</code>
+            <output id="formula-x">WAITING FOR ∂x SHOT</output>
+          </article>
+          <i class="chain-arrow" aria-hidden="true">→</i>
+          <article class="operator-step operator-y" id="operator-y-step" data-state="waiting">
+            <span class="operator-badge">∂<sub>y</sub></span>
+            <small>CHAIN RULE</small>
+            <strong>∂<sub>y</sub>P=½(∂<sub>y</sub>n·σ)</strong>
+            <code>∂<sub>y</sub>n=−d<sub>y</sub>/r+d(d·d<sub>y</sub>)/r³</code>
+            <output id="formula-y">WAITING FOR ∂y SHOT</output>
+          </article>
+          <i class="chain-arrow limit-arrow" aria-hidden="true">/</i>
+          <article class="operator-step operator-limit" id="operator-limit-step" data-state="locked">
+            <span class="operator-badge">∂<sub>y</sub>²</span>
+            <small>FOLD LIMIT</small>
+            <strong>∂<sub>y</sub>²P=½(∂<sub>y</sub>²n·σ)</strong>
+            <code>n<sub>yy</sub>=−d<sub>yy</sub>/r+2d<sub>y</sub>q/r³+d(|d<sub>y</sub>|²+d·d<sub>yy</sub>)/r³−3dq²/r⁵, &nbsp;q=d·d<sub>y</sub></code>
+            <output id="formula-limit">LOCKED UNTIL ∂yP=0</output>
+          </article>
+        </div>
+        <div class="operator-contract" id="operator-contract">
+          <small>CONTRACTION</small>
+          <strong id="formula-contract">Fire ∂xP and ∂yP at the same expression.</strong>
+        </div>
       </section>
 
       <section class="strike-grid">
         <article class="arena-panel">
           <div class="strike-panel-head">
             <span><i></i> LOCAL FOLD RANGE</span>
-            <small>WASD MOVE · MOUSE AIM · TWO TANGENT ROUNDS</small>
+            <small>CALCULATE THE DISPLAYED VALUE · AIM · FIRE</small>
           </div>
           <div class="arena-shell" id="arena-shell">
             <canvas id="strike-canvas" aria-label="Top-down differential shooter arena"></canvas>
+            <div class="live-question" id="live-question">
+              <small id="loaded-operator">AUTO-LOADED · ∂x</small>
+              <strong id="live-question-text">At k=(0,0), which value is ∂ₓn?</strong>
+              <span>SHOOT THE CORRECT VALUE — NOT THE CORE</span>
+            </div>
             <div class="rank-warning" id="rank-warning" hidden>
               <small>FIRST-DERIVATIVE ATTACK FAILED</small>
               <strong>0 DAMAGE · g<sup>−1</sup> LOCKED</strong>
@@ -114,27 +172,27 @@
               <span>g =</span>
               <b>[</b>
               <div>
-                <strong id="metric-xx">0.500</strong>
-                <strong id="metric-xy-a">0.000</strong>
-                <strong id="metric-xy-b">0.000</strong>
-                <strong id="metric-yy">0.500</strong>
+                <strong id="metric-xx">—</strong>
+                <strong id="metric-xy-a">—</strong>
+                <strong id="metric-xy-b">—</strong>
+                <strong id="metric-yy">—</strong>
               </div>
               <b>]</b>
             </div>
           </div>
           <div class="receipt-list">
-            <div><small>ORIENTED AREA</small><strong id="target-lambda">λ̄=+0.500000</strong></div>
-            <div><small>AREA SQUARED</small><strong id="target-det">det g=2.500e−1</strong></div>
-            <div id="inverse-row"><small>INVERSE STATUS</small><strong id="target-inverse">g<sup>−1</sup> READY</strong></div>
-            <div id="limit-row"><small>LIMIT RESPONSE</small><strong id="target-limit">λ̄<sub>y</sub>=−0.000000</strong></div>
+            <div><small>ORIENTED AREA</small><strong id="target-lambda">λ̄=PENDING</strong></div>
+            <div><small>AREA SQUARED</small><strong id="target-det">det g=PENDING</strong></div>
+            <div id="inverse-row"><small>INVERSE STATUS</small><strong id="target-inverse">g<sup>−1</sup> PENDING</strong></div>
+            <div id="limit-row"><small>LIMIT RESPONSE</small><strong id="target-limit">λ̄<sub>y</sub>=PENDING</strong></div>
           </div>
           <div class="target-hp">
-            <span><small>CORE INTEGRITY</small><b id="target-hp-text">150 / 150</b></span>
+            <span><small>CORE INTEGRITY</small><b id="target-hp-text">126 / 126</b></span>
             <div><i id="target-hp-bar"></i></div>
           </div>
           <div class="calculation-note" id="calculation-note">
-            <b>FIRST: make both derivatives visible.</b>
-            <p>The first shot stores one tangent. The second closes their parallelogram and converts its area into impact.</p>
+            <b>SOLVE THE DISPLAYED VALUE — NOT THE FIRING ORDER.</b>
+            <p>Shoot the vector produced by the chain rule. The receipt stays hidden until the required answers are correct.</p>
           </div>
         </aside>
       </section>
@@ -146,11 +204,7 @@
           <button type="button" data-move="down">S</button>
           <button type="button" data-move="right">D</button>
         </div>
-        <div class="fire-pad">
-          <button type="button" data-fire="x">∂x</button>
-          <button type="button" data-fire="y">∂y</button>
-          <button type="button" data-fire="limit" id="touch-limit" disabled>∂y²</button>
-        </div>
+        <p class="touch-fire-hint"><b>TAP ONE VALUE IN THE ARENA</b><span>The displayed derivative is loaded automatically.</span></p>
       </section>
     </main>
 
@@ -159,15 +213,26 @@
       <p>THE ONE-DAY FOLD DRILL // MADE PLAYABLE</p>
       <h2>FIRE TWO DERIVATIVES.<br><em>MAKE AREA HIT.</em></h2>
       <span>At the fold, the first attack must fail. That failure unlocks the derivative you actually need.</span>
-      <button type="button" id="strike-start-button"><b>ENTER THE LOCAL CALCULATION</b><small>CLICK · ENTER</small></button>
+      <div class="start-problem">
+        <small>CALCULATION TO COMPLETE</small>
+        <code>d=(sin k<sub>x</sub>, sin k<sub>y</sub>, 1−cos k<sub>x</sub>−cos k<sub>y</sub>), &nbsp;P=½(I−d̂·σ)</code>
+        <b>At k*=(π,π/3): evaluate ∂<sub>x</sub>P, ∂<sub>y</sub>P, g and g<sup>−1</sup>; if rank drops, compute λ̄<sub>y</sub>.</b>
+      </div>
+      <button type="button" id="strike-start-button"><b>ENTER THE LOCAL CALCULATION</b><small>CALCULATE · AIM · SHOOT THE VALUE</small></button>
       <a href="./index.html">KEEP THE TORUS GAME →</a>
     </div>
 
     <div class="strike-complete" id="strike-complete" hidden>
-      <small>LOCAL DRILL COMPLETE</small>
-      <h2>THE INVERSE FAILED.<br>THE LIMIT ROUND LANDED.</h2>
-      <p>You made (∂xP, ∂yP) produce area damage, watched rank drop at (k=(π,π/3)), then used (∂y²P) to recover the fold response.</p>
-      <div><button type="button" id="strike-restart">RUN IT AGAIN</button><a href="./index.html">RETURN TO TORUS</a></div>
+      <small>DECISIVE ANSWER // k*=(π,π/3)</small>
+      <h2>THE CALCULATION<br><em>HAS AN ANSWER.</em></h2>
+      <div class="solution-receipt">
+        <p><span>FIRST JET</span><code>∂<sub>x</sub>n=(1/√3,0,0), &nbsp;∂<sub>y</sub>n=(0,0,0)</code></p>
+        <p><span>METRIC</span><code>g=[[1/6,0],[0,0]], &nbsp;det g=0 ⇒ g<sup>−1</sup> does not exist</code></p>
+        <p><span>NEXT JET</span><code>∂<sub>y</sub>²n=(0,1/2,−1/(2√3))</code></p>
+        <p><span>TRANSVERSE RESPONSE</span><code>λ̄<sub>y</sub>=½n·(∂<sub>x</sub>n×∂<sub>y</sub>²n)=−1/6</code></p>
+        <strong>Answer: the inverse-metric route stops because one tangent vanishes; the first nonzero transverse derivative is λ̄<sub>y</sub>=−1/6.</strong>
+      </div>
+      <div class="complete-actions"><button type="button" id="strike-restart">RUN IT AGAIN</button><a href="./index.html">RETURN TO TORUS</a></div>
     </div>
 
     <script type="module" src="./src/shooter.js"></script>

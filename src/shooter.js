@@ -1,6 +1,7 @@
 import {
   SHOOTER_STEP,
   createShooterState,
+  currentShooterQuestion,
   currentShooterTarget,
   resetShooter,
   startShooter,
@@ -43,7 +44,20 @@ const ui = {
   note: $("#calculation-note"),
   limitCard: $("#limit-card"),
   limitStatus: $("#limit-status"),
-  touchLimit: $("#touch-limit"),
+  answerStatus: $("#answer-status"),
+  calculationTarget: $(".calculation-target"),
+  loadedOperator: $("#loaded-operator"),
+  liveQuestion: $("#live-question"),
+  liveQuestionText: $("#live-question-text"),
+  formulaSource: $("#formula-source"),
+  formulaX: $("#formula-x"),
+  formulaY: $("#formula-y"),
+  formulaLimit: $("#formula-limit"),
+  formulaContract: $("#formula-contract"),
+  operatorX: $("#operator-x-step"),
+  operatorY: $("#operator-y-step"),
+  operatorLimit: $("#operator-limit-step"),
+  operatorContract: $("#operator-contract"),
 };
 
 const COLORS = {
@@ -102,6 +116,15 @@ function compactExponent(value) {
   return value.toExponential(3).replace("e-", "e−").replace("e+", "e+");
 }
 
+function formulaNumber(value) {
+  const safe = Math.abs(value) < 5e-7 ? 0 : value;
+  return safe.toFixed(3).replace("-", "−");
+}
+
+function formulaVector(vector) {
+  return `(${formulaNumber(vector.x)}, ${formulaNumber(vector.y)}, ${formulaNumber(vector.z)})`;
+}
+
 function sourceLabel(target) {
   if (!target) return "k=(—,—)";
   if (target.id === "regular-a") return "k=(0,0)";
@@ -157,6 +180,10 @@ function soundForEvent(event) {
     tone(420, 0.16, "triangle", 0.04, 1.5);
   } else if (event.type === "locked" || event.type === "glance") {
     tone(120, 0.1, "square", 0.025, 0.8);
+  } else if (event.type === "correct-answer") {
+    tone(660, 0.12, "triangle", 0.04, 1.45);
+  } else if (event.type === "wrong-answer" || event.type === "answer-shield") {
+    tone(145, 0.14, "square", 0.035, 0.55);
   }
 }
 
@@ -191,7 +218,21 @@ function processEvents(events) {
     if (event.type === "probe") {
       const color = event.probe === "x" ? COLORS.x : COLORS.y;
       burst(event.x, event.y, color, 9, 0.18, 0.35);
-      addFloater(event.x, event.y - 0.055, event.probe === "x" ? "∂xP STORED" : "∂yP STORED", color);
+      addFloater(event.x, event.y - 0.055, event.probe === "x" ? "P → ∂xP" : "P → ∂yP", color);
+    }
+    if (event.type === "correct-answer") {
+      const color = event.probe === "x" ? COLORS.x : event.probe === "y" ? COLORS.y : COLORS.limit;
+      burst(event.x, event.y, color, 18, 0.3, 0.5);
+      addShockwave(event.x, event.y, color, false);
+      addFloater(event.x, event.y - 0.05, `CORRECT ${event.label}`, color, true);
+    }
+    if (event.type === "wrong-answer") {
+      shake = Math.max(shake, 5);
+      burst(event.x, event.y, COLORS.negative, 12, 0.2, 0.4);
+      addFloater(event.x, event.y - 0.045, `NOT ${event.label}`, COLORS.negative, true);
+    }
+    if (event.type === "answer-shield") {
+      addFloater(event.x, event.y - 0.065, "SHOOT A VALUE", COLORS.fold);
     }
     if (event.type === "damage") {
       const limit = event.mode === "limit";
@@ -374,6 +415,42 @@ function drawEnemy(ctx, enemy) {
   ctx.fillText(enemy.label, x, y + radius * 1.85);
 }
 
+function drawAnswerChoices(ctx) {
+  const question = currentShooterQuestion(game);
+  if (!question) return;
+  const color = question.stage === "x" ? COLORS.x : question.stage === "y" ? COLORS.y : COLORS.limit;
+  const cardWidth = Math.min(176, width * 0.215);
+  const cardHeight = Math.max(39, Math.min(48, height * 0.092));
+  for (let index = 0; index < question.choices.length; index += 1) {
+    const choice = question.choices[index];
+    const x = coordinate(choice.x, "x");
+    const y = coordinate(choice.y, "y");
+    const left = x - cardWidth / 2;
+    const top = y - cardHeight / 2;
+    ctx.save();
+    ctx.fillStyle = "rgba(4, 14, 21, 0.94)";
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.88;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.rect(left, top, cardWidth, cardHeight);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = color;
+    ctx.font = "700 8px ui-monospace, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(String.fromCharCode(65 + index), left + 8, top + 12);
+    ctx.fillStyle = COLORS.ink;
+    ctx.font = `700 ${width < 520 ? 10 : 12}px ui-monospace, monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(choice.label, x, y + 4);
+    ctx.restore();
+  }
+}
+
 function drawBullet(ctx, bullet) {
   const x = coordinate(bullet.x, "x");
   const y = coordinate(bullet.y, "y");
@@ -488,6 +565,7 @@ function renderArena() {
   context.translate(offsetX, offsetY);
   drawBackground(context);
   for (const enemy of game.enemies) drawEnemy(context, enemy);
+  drawAnswerChoices(context);
   for (const bullet of game.bullets) drawBullet(context, bullet);
   drawPlayer(context);
   drawEffects(context);
@@ -508,16 +586,85 @@ function calculationNote(target) {
       }
       return ["RELOAD THE SURVIVING DIRECTION.", "Tag ∂xP again, then fire ∂y²P. Every limit impact explicitly rebuilds the pair (∂xP, ∂y²P)."];
     }
-    return ["MAKE THE FAILURE VISIBLE.", "Hit the core with ∂xP and ∂yP. Here ∂yP=0, so det g=λ̄²=0 and the ordinary area attack must deal zero damage."];
+    return ["CALCULATE BOTH VALUES ABOVE.", "The operator is already loaded. Shoot the vector produced by the displayed chain rule; the metric receipt stays hidden until both answers are correct."];
   }
   if (target.geometry.lambda < 0) {
     return ["THE DAMAGE STAYS POSITIVE; THE ORIENTATION FLIPS.", "This target has λ̄<0. The magnitude is mapped area; the minus sign says the sheet covers the Bloch sphere in the opposite orientation."];
   }
-  return ["FIRST: make both derivatives visible.", "The first shot stores one tangent. The second closes their parallelogram and converts √det g=|λ̄| into impact."];
+  return ["SOLVE THE DISPLAYED VALUE — NOT THE FIRING ORDER.", "Shoot the vector produced by the chain rule. Two correct derivative values reveal the Gram matrix and convert √det g=|λ̄| into impact."];
+}
+
+function updateOperatorWorkbench(target) {
+  if (!target?.geometry?.jet) {
+    ui.formulaSource.textContent = "NO LIVE EXPRESSION";
+    ui.formulaX.textContent = "WAITING FOR ∂x SHOT";
+    ui.formulaY.textContent = "WAITING FOR ∂y SHOT";
+    ui.formulaLimit.textContent = "LOCKED UNTIL ∂yP=0";
+    ui.formulaContract.textContent = "Local differentiation drill complete.";
+    ui.operatorX.dataset.state = "waiting";
+    ui.operatorY.dataset.state = "waiting";
+    ui.operatorLimit.dataset.state = "locked";
+    delete ui.operatorContract.dataset.mode;
+    return;
+  }
+
+  const { geometry, operations } = target;
+  const { jet } = geometry;
+  const hasX = operations.x > 0;
+  const hasY = operations.y > 0;
+  const hasLimit = operations.limit > 0;
+  const hasContract = operations.contract > 0;
+  ui.formulaSource.textContent = `d=${formulaVector(jet.d)}, r=${formulaNumber(jet.radius)}`;
+  ui.formulaX.textContent = hasX
+    ? `dₓ=${formulaVector(jet.dx)}, d·dₓ=${formulaNumber(jet.dotX)} ⇒ ∂ₓn=${formulaVector(geometry.tangentX)}`
+    : "WAITING FOR ∂x SHOT";
+  ui.formulaY.textContent = hasY
+    ? `dᵧ=${formulaVector(jet.dy)}, d·dᵧ=${formulaNumber(jet.dotY)} ⇒ ∂ᵧn=${formulaVector(geometry.tangentY)}`
+    : "WAITING FOR ∂y SHOT";
+  ui.operatorX.dataset.state = hasX ? "fired" : "waiting";
+  ui.operatorY.dataset.state = hasY
+    ? geometry.inverseAvailable ? "fired" : "zero"
+    : "waiting";
+
+  if (!target.rankDropSeen) {
+    ui.operatorLimit.dataset.state = "locked";
+    ui.formulaLimit.textContent = "LOCKED UNTIL ∂yP=0";
+  } else if (!hasLimit) {
+    ui.operatorLimit.dataset.state = "ready";
+    ui.formulaLimit.textContent = "READY: apply ∂y once more to the vanished ∂yn";
+  } else {
+    ui.operatorLimit.dataset.state = "fired";
+    ui.formulaLimit.textContent = `dᵧᵧ=${formulaVector(jet.dyy)} ⇒ ∂ᵧ²n=${formulaVector(geometry.secondY)}`;
+  }
+
+  if (target.rankDropSeen && hasLimit && hasContract) {
+    ui.operatorContract.dataset.mode = "limit";
+    ui.formulaContract.textContent = `λ̄y=½ n·(∂ₓn×∂ᵧ²n)=${signed(geometry.lambdaV)} ⇒ LIMIT DAMAGE`;
+  } else if (target.rankDropSeen && hasLimit) {
+    ui.operatorContract.dataset.mode = "rank-drop";
+    ui.formulaContract.textContent = "FINAL VALUE QUESTION: λ̄y=½ n·(∂ₓn×∂ᵧ²n)=? Shoot the scalar answer.";
+  } else if (target.rankDropSeen) {
+    ui.operatorContract.dataset.mode = "rank-drop";
+    ui.formulaContract.textContent = `∂ᵧn=${formulaVector(geometry.tangentY)} ⇒ det g=${compactExponent(geometry.determinant)} ⇒ 0 DAMAGE; differentiate again`;
+  } else if (hasX && hasY) {
+    ui.operatorContract.dataset.mode = "area";
+    ui.formulaContract.textContent = `λ̄=½ n·(∂ₓn×∂ᵧn)=${signed(geometry.lambda)}; √det g=${Math.sqrt(geometry.determinant).toFixed(6)} ⇒ AREA DAMAGE`;
+  } else if (hasX) {
+    delete ui.operatorContract.dataset.mode;
+    ui.formulaContract.textContent = `∂ₓP now exists as ½(${formulaVector(geometry.tangentX)}·σ). Fire ∂yP to contract the pair.`;
+  } else if (hasY) {
+    delete ui.operatorContract.dataset.mode;
+    ui.formulaContract.textContent = `∂ᵧP now exists as ½(${formulaVector(geometry.tangentY)}·σ). Fire ∂xP to contract the pair.`;
+  } else {
+    delete ui.operatorContract.dataset.mode;
+    ui.formulaContract.textContent = "Fire ∂xP and ∂yP at the same expression.";
+  }
 }
 
 function updateUi() {
   const target = currentShooterTarget(game);
+  const question = currentShooterQuestion(game);
+  updateOperatorWorkbench(target);
   ui.waveNumber.textContent = game.wave?.number ?? "✓";
   ui.waveKicker.textContent = game.wave?.kicker ?? "COMPLETE";
   ui.title.textContent = game.wave?.title ?? "Local calculation complete";
@@ -528,6 +675,9 @@ function updateUi() {
   ui.targetName.textContent = target?.label ?? "NO LIVE TARGET";
 
   if (!target) {
+    ui.liveQuestion.hidden = true;
+    ui.answerStatus.textContent = "RESOLVED · λ̄y=−1/6";
+    ui.calculationTarget.dataset.state = "resolved";
     ui.orientation.textContent = "LOCAL DRILL COMPLETE";
     ui.hpText.textContent = "0 / 0";
     ui.hpBar.style.width = "0%";
@@ -536,19 +686,29 @@ function updateUi() {
     return;
   }
 
+  ui.liveQuestion.hidden = !question;
+  if (question) {
+    const operator = question.stage === "lambda" ? "CONTRACT λ̄y" : question.expectedProbe === "x" ? "∂x" : question.expectedProbe === "y" ? "∂y" : "∂y²";
+    ui.liveQuestion.dataset.probe = question.expectedProbe;
+    ui.loadedOperator.textContent = `AUTO-LOADED · ${operator}`;
+    ui.liveQuestionText.textContent = question.prompt;
+  }
+
   const geometry = target.geometry;
+  const firstJetComplete = target.operations.x > 0 && target.operations.y > 0;
+  const limitComplete = target.operations.contract > 0;
   const sign = geometry.lambda > 1e-7 ? "> 0 · ORIENTATION +" : geometry.lambda < -1e-7 ? "< 0 · ORIENTATION −" : "= 0 · RANK DROP";
   ui.orientation.textContent = `λ̄ ${sign}`;
-  ui.gxx.textContent = geometry.gxx.toFixed(3);
-  ui.gxyA.textContent = signed(geometry.gxy, 3);
-  ui.gxyB.textContent = signed(geometry.gxy, 3);
-  ui.gyy.textContent = geometry.gyy.toFixed(3);
-  ui.lambda.textContent = `λ̄=${signed(geometry.lambda)}`;
-  ui.determinant.textContent = `det g=${compactExponent(geometry.determinant)}`;
-  ui.inverse.textContent = geometry.inverseAvailable ? "g⁻¹ READY" : "g⁻¹ UNDEFINED";
-  ui.inverseRow.classList.toggle("is-locked", !geometry.inverseAvailable);
-  ui.limit.textContent = `λ̄y=${signed(geometry.lambdaV)}`;
-  ui.limitRow.classList.toggle("is-hot", target.rankDropSeen);
+  ui.gxx.textContent = firstJetComplete ? geometry.gxx.toFixed(3) : "—";
+  ui.gxyA.textContent = firstJetComplete ? signed(geometry.gxy, 3) : "—";
+  ui.gxyB.textContent = firstJetComplete ? signed(geometry.gxy, 3) : "—";
+  ui.gyy.textContent = firstJetComplete ? geometry.gyy.toFixed(3) : "—";
+  ui.lambda.textContent = firstJetComplete ? `λ̄=${signed(geometry.lambda)}` : "λ̄=PENDING";
+  ui.determinant.textContent = firstJetComplete ? `det g=${compactExponent(geometry.determinant)}` : "det g=PENDING";
+  ui.inverse.textContent = firstJetComplete ? geometry.inverseAvailable ? "g⁻¹ READY" : "g⁻¹ UNDEFINED" : "g⁻¹ PENDING";
+  ui.inverseRow.classList.toggle("is-locked", firstJetComplete && !geometry.inverseAvailable);
+  ui.limit.textContent = limitComplete ? `λ̄y=${signed(geometry.lambdaV)}` : "λ̄y=PENDING";
+  ui.limitRow.classList.toggle("is-hot", limitComplete);
   ui.hpText.textContent = `${target.hp} / ${target.maxHp}`;
   ui.hpBar.style.width = `${(target.hp / target.maxHp) * 100}%`;
   ui.hpBar.style.backgroundColor = enemyColor(target);
@@ -558,7 +718,22 @@ function updateUi() {
   ui.limitCard.setAttribute("aria-disabled", String(!game.limitUnlocked));
   ui.limitCard.classList.toggle("is-unlocked", game.limitUnlocked);
   ui.limitStatus.textContent = game.limitUnlocked ? "UNLOCKED · λ̄y LIMIT" : "locked until rank drops";
-  ui.touchLimit.disabled = !game.limitUnlocked;
+  if (target.rankDropSeen && target.operations.contract > 0) {
+    ui.answerStatus.textContent = "RESOLVED · λ̄y=−1/6";
+    ui.calculationTarget.dataset.state = "resolved";
+  } else if (target.operations.limit > 0) {
+    ui.answerStatus.textContent = "FINAL SCALAR QUESTION · COMPUTE λ̄y";
+    delete ui.calculationTarget.dataset.state;
+  } else if (target.rankDropSeen) {
+    ui.answerStatus.textContent = "g⁻¹ BLOCKED · COMPUTE ∂y²n";
+    delete ui.calculationTarget.dataset.state;
+  } else if (target.fold) {
+    ui.answerStatus.textContent = "CALCULATING THE FIRST JET";
+    delete ui.calculationTarget.dataset.state;
+  } else {
+    ui.answerStatus.textContent = "UNRESOLVED · REACH THE FOLD CORE";
+    delete ui.calculationTarget.dataset.state;
+  }
 }
 
 function buildInput() {
@@ -573,14 +748,16 @@ function buildInput() {
     aimX = target.x - game.player.x;
     aimY = target.y - game.player.y;
   }
+  const question = currentShooterQuestion(game);
+  const keyboardFire = keyboard.has("Space") || keyboard.has("Enter") || keyboard.has("KeyJ") || keyboard.has("KeyK") || keyboard.has("KeyL");
   const input = {
     moveX: Number(moveRight) - Number(moveLeft),
     moveY: Number(moveDown) - Number(moveUp),
     aimX,
     aimY,
-    fireX: pending.x || keyboard.has("KeyJ"),
-    fireY: pending.y || keyboard.has("KeyK"),
-    fireLimit: pending.limit || keyboard.has("Space") || keyboard.has("KeyL"),
+    fireX: pending.x || (keyboardFire && question?.expectedProbe === "x"),
+    fireY: pending.y || (keyboardFire && question?.expectedProbe === "y"),
+    fireLimit: pending.limit || (keyboardFire && question?.expectedProbe === "limit"),
   };
   pending.x = false;
   pending.y = false;
@@ -644,7 +821,8 @@ canvas.addEventListener("pointerleave", () => { pointer.inside = false; });
 canvas.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   updatePointer(event);
-  pending[event.button === 2 ? "y" : "x"] = true;
+  const question = currentShooterQuestion(game);
+  pending[question?.expectedProbe ?? "x"] = true;
 });
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -656,14 +834,6 @@ for (const button of $$("[data-move]")) {
   button.addEventListener("pointerup", up);
   button.addEventListener("pointercancel", up);
   button.addEventListener("lostpointercapture", up);
-}
-
-for (const button of $$("[data-fire]")) {
-  button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    pending[button.dataset.fire] = true;
-    pointer.inside = false;
-  });
 }
 
 $("#strike-start-button").addEventListener("click", start);

@@ -351,18 +351,19 @@
           <table>
             <thead><tr><th>슈터에서 일어나는 일</th><th>실제로 계산한 것</th><th>판정</th></tr></thead>
             <tbody>
-              <tr><th>cyan <code>∂<sub>x</sub>P</code> 탄이 박힘</th><td>Bloch map의 첫 tangent와 <code>g<sub>xx</sub></code>를 저장</td><td><strong class="exact">아직 damage 없음</strong></td></tr>
-              <tr><th>같은 적에 coral <code>∂<sub>y</sub>P</code> 탄이 박힘</th><td>Gram matrix를 닫고 <code>√det g=|λ̄|</code> 계산</td><td><strong class="exact">AREA DAMAGE</strong></td></tr>
+              <tr><th><code>∂<sub>x</sub>n=?</code>와 세 벡터 값이 뜸</th><td>현재 <code>k</code>를 <code>−d<sub>x</sub>/r+d(d·d<sub>x</sub>)/r³</code>에 대입해 계산</td><td><strong class="exact">정답 값을 쏴야 ∂<sub>x</sub>P 생성</strong></td></tr>
+              <tr><th><code>∂<sub>y</sub>n=?</code>의 정답 값을 쏨</th><td>두 실제 tangent로 Gram matrix를 닫고 <code>√det g=|λ̄|</code> 계산</td><td><strong class="exact">AREA DAMAGE</strong></td></tr>
               <tr><th><code>λ̄&lt;0</code>인 적</th><td>넓이의 크기는 damage, 부호는 구면 sheet의 orientation</td><td><strong class="exact">같은 타격·반대 방향</strong></td></tr>
-              <tr><th>fold core에 두 1차 미분탄</th><td><code>∂<sub>y</sub>P=0</code>이므로 rank가 떨어지고 <code>det g=0</code></td><td><strong class="absent">0 DAMAGE · g<sup>−1</sup> LOCKED</strong></td></tr>
-              <tr><th>amber <code>∂<sub>y</sub>²P</code> 탄 해금</th><td>남겨 둔 <code>∂<sub>x</sub>P</code>와 함께 <code>λ̄<sub>y</sub></code>를 계산; 다음 타격에는 <code>∂<sub>x</sub>P</code>도 다시 쏜다</td><td><strong class="proxy">LIMIT DAMAGE</strong></td></tr>
+              <tr><th>fold에서 정답 <code>∂<sub>y</sub>n=(0,0,0)</code>을 쏨</th><td>rank가 떨어지고 <code>g=diag(1/6,0)</code>, <code>det g=0</code></td><td><strong class="absent">g<sup>−1</sup> DOES NOT EXIST</strong></td></tr>
+              <tr><th><code>∂<sub>y</sub>²n=?</code>의 세 값 중 정답을 쏨</th><td><code>(0,1/2,−1/(2√3))</code>를 얻어 마지막 contraction 식을 연다</td><td><strong class="proxy">NEXT JET REVEALED</strong></td></tr>
+              <tr><th><code>λ̄<sub>y</sub>=½n·(∂<sub>x</sub>n×∂<sub>y</sub>²n)=?</code></th><td>세 scalar 값 <code>−1/6,+1/6,0</code> 중 직접 계산한 <code>−1/6</code>을 쏜다</td><td><strong class="proxy">DECISIVE ANSWER</strong></td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="normal-form-boundary">
           <b>정확한 경계</b>
-          <p><a href="./shooter.html">DIFFERENTIAL STRIKE</a>는 이 논문의 two-band map에서 실제 유한차분한 국소 미분값으로 싸우는 drill이다. 기존 torus mode가 <code>T²→S²</code>, fold, 1/3 preimages와 signed coverage라는 전역 장면을 맡고, shooter는 “어느 미분이 사라져 역행렬이 막히며 다음 미분이 무엇을 복구하는가”를 한 점에서 반복 훈련한다. 논문의 singular curvature 적분 자체를 shooter damage라고 부르지는 않는다.</p>
+          <p><a href="./shooter.html">DIFFERENTIAL STRIKE</a>는 이 논문의 two-band map을 연쇄법칙으로 직접 미분하고, 그 결과 값을 player가 계산해 고르는 drill이다. 오답 벡터를 쏘면 식은 변하지 않는다. 기존 torus mode가 <code>T²→S²</code>, fold, 1/3 preimages와 signed coverage라는 전역 장면을 맡고, shooter는 “어느 미분이 사라져 역행렬이 막히며 다음 미분이 무엇을 복구하는가”를 한 점에서 훈련한다. 논문의 singular curvature 적분 자체를 shooter damage라고 부르지는 않는다.</p>
         </div>
       </section>
     </main>
