@@ -2,6 +2,8 @@
 
 A short arcade-cartography game about steering a point through a periodic domain while reading its folded image on a state surface. Five staged missions teach edge wrapping, orientation reversal, one-to-three provenance, signed cancellation, and a final integer-charge run through play.
 
+The mathematical design argument—and the exact boundary between mapping degree and the game's discrete proxy—is documented in [`philosophy.html`](./philosophy.html).
+
 ## Play locally
 
 Requires Node.js 20 or newer. There are no runtime dependencies or build step.

@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071019">
+    <meta
+      name="description"
+      content="Quantum Fold의 수학적 설계 논증: winding이 아니라 fold map의 local degree를 플레이로 옮긴 이유와 구현의 한계."
+    >
+    <title>Why Quantum Fold — Degree, not winding</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./philosophy.css">
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+
+    <header class="essay-header">
+      <a class="back-link" href="./index.html"><span aria-hidden="true">←</span> GAME</a>
+      <div class="brand-lockup">
+        <span class="brand-orbit" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><b>QUANTUM FOLD</b><small>DESIGN AUDIT // 01</small></span>
+      </div>
+      <span class="header-tag">DEGREE, NOT WINDING</span>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">먼저 결론부터</p>
+        <h1>이 게임은 경로의 winding을 세려던 게임이 아니다.</h1>
+        <p class="hero-thesis">
+          의도한 핵심은 <strong>하나의 보이는 상태점에 붙은 여러 원상의 국소 차수(local degree)가
+          부호와 함께 합쳐져 전역 정수 degree를 만든다</strong>는 사실을, 조종감과 실패 기록으로 먼저
+          체험시키는 것이었다.
+        </p>
+        <div class="scope-note">
+          <b>해석 범위</b>
+          <p>
+            이 문서는 원 논문을 읽고 만든 해설이 아니다. 최초 제약대로 <code>GAME_PRINCIPLES.md</code>와
+            실제 구현만을 역으로 감사한 설계 논증이다. 따라서 아래 주장은 “논문과 일치한다”가 아니라
+            “현재 게임이 정확히 어떤 수학을 구현했고 어디서 단순화했는가”에 대한 반박 가능한 명세다.
+          </p>
+        </div>
+      </section>
+
+      <section class="worked-example" aria-labelledby="example-title">
+        <div class="section-heading">
+          <span>01</span>
+          <div>
+            <p class="eyebrow">현상을 먼저 본다</p>
+            <h2 id="example-title">한 상태점에 원상이 셋인데, 합은 왜 1인가?</h2>
+          </div>
+        </div>
+
+        <div class="lab-layout">
+          <div class="plot-column">
+            <div class="plot-toolbar">
+              <label for="u-slider">
+                source slice <i>u</i>
+                <output id="u-value" for="u-slider">0.000</output>
+              </label>
+              <input id="u-slider" type="range" min="0" max="1" step="0.001" value="0">
+            </div>
+            <svg
+              id="fold-plot"
+              viewBox="0 0 760 420"
+              role="img"
+              aria-labelledby="plot-title plot-description"
+            >
+              <title id="plot-title">고정된 u에서 source v가 mapped v로 접히는 그래프</title>
+              <desc id="plot-description">수평선 mapped v=0.5와 그래프의 교점이 원상이며, 각 교점의 모양과 부호가 Jacobian 방향을 나타낸다.</desc>
+              <g id="plot-grid"></g>
+              <path id="identity-line"></path>
+              <path id="target-line"></path>
+              <path id="fold-curve"></path>
+              <g id="critical-marks"></g>
+              <g id="root-marks"></g>
+              <g class="axis-labels" aria-hidden="true">
+                <text x="380" y="407">source coordinate v</text>
+                <text x="18" y="210" transform="rotate(-90 18 210)">mapped coordinate v′</text>
+                <text x="704" y="199" class="target-label">v′ = 1/2</text>
+              </g>
+            </svg>
+            <p class="plot-caption" id="plot-caption">
+              점은 원상, 모양은 부호다: 원형 <b>+</b>, 마름모 <b>−</b>. 호박색 표시는 fold 임계점이다.
+            </p>
+          </div>
+
+          <aside class="live-proof" aria-live="polite">
+            <div class="live-metrics">
+              <div><small>A(u)</small><strong id="amplitude-value">1.500</strong></div>
+              <div><small>|F⁻¹(y)|</small><strong id="multiplicity-value">3</strong></div>
+              <div><small>Σ sign J</small><strong id="degree-value">+1</strong></div>
+            </div>
+            <p id="live-conclusion">세 겹이 보이지만 부호는 +, −, +이므로 signed multiplicity는 1이다.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>원상 v</th><th>J = det DF</th><th>local degree</th></tr></thead>
+                <tbody id="root-table"></tbody>
+              </table>
+            </div>
+          </aside>
+        </div>
+
+        <div class="worked-numbers" data-source="src/game.js" data-quote="export function findSourcesForState(u, targetV, samples = 1024) {">
+          <p class="eyebrow">기본 슬라이스 u = 0의 실제 수치</p>
+          <div class="equation-line">
+            <span>F⁻¹(0, ½)</span>
+            <b>≈ {(0, 0.261939), (0, 0.500000), (0, 0.738061)}</b>
+          </div>
+          <div class="sign-sequence" aria-label="Jacobian signs positive, negative, positive, summing to positive one">
+            <span class="positive">+0.887583</span><i>+</i>
+            <span class="negative">−0.500000</span><i>+</i>
+            <span class="positive">+0.887583</span><i>⇒</i>
+            <strong>+1</strong>
+          </div>
+          <p>
+            마지막 화살표는 Jacobian 값 자체의 합이 아니라 <em>각 값의 부호</em>를 더한다는 뜻이다.
+            즉 <code>(+1) + (−1) + (+1) = +1</code>이다.
+          </p>
+        </div>
+      </section>
+
+      <section class="derivation" aria-labelledby="model-title">
+        <div class="section-heading">
+          <span>02</span>
+          <div>
+            <p class="eyebrow">모델과 convention lock</p>
+            <h2 id="model-title">게임이 실제로 쓰는 map</h2>
+          </div>
+        </div>
+
+        <div class="convention-lock">
+          <b>Convention lock</b>
+          <p>
+            source와 state는 모두 표준 방향을 가진 2-torus
+            <code>T² = (ℝ/ℤ)²</code>이고 좌표는 <code>(u,v)</code>, <code>(u′,v′)</code>이다.
+            면적형은 <code>ω = du′∧dv′</code>, 전체 면적은 1로 정규화한다.
+          </p>
+        </div>
+
+        <div class="formula-stack" data-source="src/game.js" data-quote="export function foldAmplitude(u) {">
+          <div class="formula-block">
+            <small>진폭</small>
+            <p>A(u) = 1.18 + 0.32 cos(6πu)</p>
+          </div>
+          <div class="formula-block" data-source="src/game.js" data-quote="export function foldPhase(u, v) {">
+            <small>fold map</small>
+            <p>F(u,v) = (u′,v′) = (u, v + A(u) sin(2πv)/(2π)) mod 1</p>
+          </div>
+        </div>
+
+        <ol class="atomic-derivation">
+          <li>
+            <span class="step-index">1</span>
+            <div>
+              <b>미분한다.</b>
+              <p class="display-formula">∂v′/∂v = 1 + A(u) cos(2πv)</p>
+              <p>첫 좌표는 <code>u′=u</code>이므로 derivative matrix는 아래 삼각형 꼴이다.</p>
+            </div>
+          </li>
+          <li data-source="src/game.js" data-quote="export function orientationValue(u, v) {">
+            <span class="step-index">2</span>
+            <div>
+              <b>Jacobian의 부호가 orientation이다.</b>
+              <p class="display-formula">
+                DF = [ 1 &nbsp; 0 ; ∂v′/∂u &nbsp; 1+A(u)cos(2πv) ]
+              </p>
+              <p class="display-formula">J(u,v) = det DF = 1 + A(u) cos(2πv)</p>
+              <p>
+                <code>J&gt;0</code>인 층은 +, <code>J&lt;0</code>인 층은 −다. 따라서 fold를 넘을 때
+                “점수 규칙”이 임의로 바뀌는 것이 아니라 map의 국소 방향이 뒤집힌다.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span class="step-index">3</span>
+            <div>
+              <b>fold와 cusp를 분리한다.</b>
+              <p class="display-formula">fold set: J=0 ⇔ cos(2πv)=−1/A(u), &nbsp; A(u)≥1</p>
+              <p>
+                일반 fold에서는 <code>∂²v′/∂v² ≠ 0</code>이다. 두 fold branch가 만나는
+                <code>A(u)=1, v=1/2</code>에서는 2차항도 사라지고 3차항이 남는다.
+              </p>
+              <p class="display-formula">
+                v′−½ = −A′(u<sub>c</sub>)ts + (2/3)π²s³ + higher order,
+                &nbsp; t=u−u<sub>c</sub>, s=v−½
+              </p>
+              <p>즉 국소적으로 <code>(t,s) ↦ (t, s³−ts)</code>형인 cusp다.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="degree-section" aria-labelledby="degree-title">
+        <div class="section-heading">
+          <span>03</span>
+          <div>
+            <p class="eyebrow">국소의 혼란에서 전역 정수로</p>
+            <h2 id="degree-title">제가 노린 불변량은 mapping degree다</h2>
+          </div>
+        </div>
+
+        <div class="degree-grid">
+          <article>
+            <p class="eyebrow">정칙값에서 세기</p>
+            <p class="large-formula">
+              deg F = Σ<sub>x∈F⁻¹(y)</sub> sign(det DF<sub>x</sub>)
+            </p>
+            <p>
+              원상의 개수 <code>|F⁻¹(y)|</code>는 1에서 3으로 바뀐다. 하지만 fold를 통과하며
+              원상은 +/− 한 쌍으로 생기거나 사라지므로 signed sum은 1로 남는다.
+            </p>
+          </article>
+          <article>
+            <p class="eyebrow">면적형으로 독립 검산</p>
+            <p class="large-formula">
+              ∫<sub>T²</sub>F*ω = ∫₀¹∫₀¹[1+A(u)cos(2πv)] du dv = 1
+            </p>
+            <p>
+              <code>cos(2πv)</code>의 한 주기 적분이 0이므로 normalized target area로 나눈 degree는 1이다.
+              또 <code>F<sub>t</sub>(u,v)=(u,v+tA(u)sin(2πv)/(2π))</code>가 identity와 F를 잇는
+              homotopy이므로 degree 1이라는 별도의 검산도 된다.
+            </p>
+          </article>
+        </div>
+
+        <div class="invariant-strip">
+          <span>raw multiplicity</span><b>1 ↔ 3</b>
+          <i aria-hidden="true">≠</i>
+          <span>signed multiplicity</span><b>1</b>
+          <i aria-hidden="true">=</i>
+          <span>degree</span><b>1</b>
+        </div>
+      </section>
+
+      <section class="winding-section" aria-labelledby="winding-title">
+        <div class="section-heading">
+          <span>04</span>
+          <div>
+            <p class="eyebrow">질문에 대한 직접 답</p>
+            <h2 id="winding-title">그래서 winding form을 정의하고 싶었던 건가?</h2>
+          </div>
+        </div>
+
+        <p class="direct-answer"><strong>아니다.</strong> 적어도 현재 코드의 charge는 winding integral이 아니다.</p>
+
+        <div class="comparison-table">
+          <table>
+            <thead>
+              <tr><th>구분</th><th>winding / H₁ 정보</th><th>이 게임이 노린 degree / H₂ 정보</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>입력</th>
+                <td>닫힌 경로 γ:S¹→T²</td>
+                <td>전체 map F:T²→T²</td>
+              </tr>
+              <tr>
+                <th>대표 계산</th>
+                <td>(∮γ du, ∮γ dv) ∈ ℤ²</td>
+                <td>∫T² F*(du′∧dv′) ∈ ℤ</td>
+              </tr>
+              <tr>
+                <th>무엇을 센다</th>
+                <td>경로가 각 주기 방향을 몇 번 도는가</td>
+                <td>state의 정칙값이 orientation과 함께 몇 번 덮이는가</td>
+              </tr>
+              <tr>
+                <th>현재 코드</th>
+                <td><strong>정의하지 않음</strong></td>
+                <td>local sign 구조는 구현, 전역 적분은 gate 합으로 단순화</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="winding-caveat">
+          플레이어 경로가 닫히고 torus의 seam을 넘기 때문에 winding으로 읽고 싶어지는 것은 자연스럽다.
+          그러나 그 경로는 <em>map을 탐색하는 probe</em>이지 charge의 정의역이 아니다. 논문에서
+          “winding form”을 별도의 뜻으로 정의한다면, 그 정의와의 대응은 이 문서만으로 주장하지 않는다.
+        </p>
+      </section>
+
+      <section class="honesty-section" aria-labelledby="honesty-title">
+        <div class="section-heading">
+          <span>05</span>
+          <div>
+            <p class="eyebrow">설득의 조건은 한계까지 말하는 것</p>
+            <h2 id="honesty-title">정확히 구현한 것과 게임적으로 속인 것</h2>
+          </div>
+        </div>
+
+        <div class="honesty-grid">
+          <article class="kept">
+            <h3>수학적 관계를 보존한 부분</h3>
+            <ul>
+              <li data-source="src/game.js" data-quote="export function wrap01(value) {"><b>주기성:</b> source 좌표는 실제로 mod 1로 wrap한다.</li>
+              <li data-source="src/game.js" data-quote="export function orientationAt(u, v) {"><b>fold sign:</b> 방향은 <code>sign(det DF)</code>에서 직접 나온다.</li>
+              <li data-source="src/game.js" data-quote="export function sourceMultiplicity(source) {"><b>1↔3 provenance:</b> 동일 state점의 원상을 수치적으로 역탐색한다.</li>
+              <li data-source="src/game.js" data-quote="export function cuspPoints() {"><b>cusp:</b> fold branch가 합쳐지는 실제 cusp 조건을 사용한다.</li>
+              <li data-source="test/game.test.js" data-quote="camera.yaw += Math.PI * 3;"><b>표현 불변성:</b> camera 회전은 F와 charge 계산에 들어가지 않는다.</li>
+            </ul>
+          </article>
+          <article class="cut" data-source="src/game.js" data-quote="export class CoverageLedger {">
+            <h3>게임을 위해 단순화한 부분</h3>
+            <ul>
+              <li><b>“area”의 단위:</b> 연속 면적이 아니라 수집한 coverage packet의 가중치다.</li>
+              <li><b>charge:</b> 현재는 <code>Qgame = Σk εk ak / q</code>인 gate 합이다.</li>
+              <li data-source="src/game.js" data-quote="state.pathClosed = periodicDistance(state.source, state.mission.home)"><b>닫힌 path:</b> 적분 정리의 전제가 아니라 마지막 mission의 완료 조건이다.</li>
+              <li data-source="src/game.js" data-quote="targetCharge: 2,"><b>정수 안정성:</b> 수치 적분의 수렴 결과가 아니라 저자가 배치한 정수 packet의 결과다.</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="verdict">
+          <p class="eyebrow">따라서 현재 게임에 내릴 수 있는 정확한 판정</p>
+          <blockquote>
+            Quantum Fold는 <strong>degree를 계산하는 시뮬레이터</strong>는 아니다.
+            대신 degree가 왜 raw multiplicity가 아니라 signed multiplicity여야 하는지를
+            실제 degree-1 cusp/fold map 위에서 가르치는 <strong>조작 가능한 비유</strong>다.
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="upgrade-section" aria-labelledby="upgrade-title">
+        <div class="section-heading">
+          <span>06</span>
+          <div>
+            <p class="eyebrow">논문 독자의 기준으로 더 엄밀하게 만들려면</p>
+            <h2 id="upgrade-title">gate 합을 실제 discrete degree estimator로 바꿔야 한다</h2>
+          </div>
+        </div>
+
+        <div class="upgrade-flow" aria-label="엄밀한 charge 계산으로 바꾸는 네 단계">
+          <div><span>1</span><b>target cell 분할</b><p>state torus를 작은 oriented cell로 나눈다.</p></div>
+          <i aria-hidden="true">→</i>
+          <div><span>2</span><b>모든 원상 탐색</b><p>각 regular sample의 F⁻¹(y)를 찾는다.</p></div>
+          <i aria-hidden="true">→</i>
+          <div><span>3</span><b>local sign 합</b><p>mF(y)=Σ sign det DF를 기록한다.</p></div>
+          <i aria-hidden="true">→</i>
+          <div><span>4</span><b>mesh 수렴 확인</b><p>fold/cusp 근처를 refine해 Qh→deg F를 보인다.</p></div>
+        </div>
+
+        <p class="display-formula final-formula">
+          Q<sub>h</sub> = [Σ<sub>cells C</sub> area(C) · m<sub>F</sub>(y<sub>C</sub>)] / area(T²)
+          &nbsp; ⟶ &nbsp; deg F
+        </p>
+        <p class="upgrade-note">
+          이 교체를 해야 “signed area”와 “integer completion”이 단순한 mission authoring이 아니라
+          실제 수치 위상 불변량의 근사가 된다. 현재 게임의 다음 수학적 개선점은 바로 여기다.
+        </p>
+      </section>
+
+      <section class="falsification-section">
+        <p class="eyebrow">이 해석을 반증하는 방법</p>
+        <h2>독자는 다음 네 가지를 코드에서 깨뜨리면 된다.</h2>
+        <ol>
+          <li>정칙값의 원상 부호 합이 1이 아닌 예를 찾는다.</li>
+          <li>fold를 넘지 않았는데 local sign이 바뀌는 경로를 찾는다.</li>
+          <li>camera 회전만으로 charge가 달라지는 입력을 찾는다.</li>
+          <li>같은 fixed-step 입력으로 서로 다른 결과가 나오는 실행을 찾는다.</li>
+        </ol>
+        <p>
+          이 중 하나라도 성립하면 위의 설계 논증은 실패한다. 그래서 문서의 핵심 수치와 source 인용은
+          deterministic test가 다시 계산한다.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <a href="./index.html">PLAY THE ARGUMENT <span aria-hidden="true">→</span></a>
+      <p>Model claim: degree-1 torus fold map. Game claim: signed-multiplicity pedagogy. Paper correspondence: not asserted.</p>
+    </footer>
+
+    <script type="module" src="./src/philosophy.js"></script>
+  </body>
+</html>

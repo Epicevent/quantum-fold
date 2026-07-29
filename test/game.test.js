@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -6,12 +8,15 @@ import {
   FIXED_STEP,
   clamp,
   createMissionState,
+  cuspPoints,
   findSourcesForState,
+  foldAmplitude,
   foldBranchesAtU,
   isChargeComplete,
   makeMissions,
   mapToState,
   orientationAt,
+  orientationValue,
   sourceMultiplicity,
   signedPeriodicDelta,
   stepMission,
@@ -157,5 +162,80 @@ test("every staged mission is deterministically completable at its authored inte
         `${state.mission.id} should land on its authored charge`,
       );
     }
+  }
+});
+
+test("the analytic Jacobian agrees with an independent finite-difference derivative", () => {
+  const delta = 1e-6;
+  for (const u of [0, 0.115, 1 / 6, 0.448, 2 / 3]) {
+    for (const v of [0.12, 0.31, 0.5, 0.67, 0.88]) {
+      const numerical = (
+        mapToState({ u, v: v + delta }).v
+        - mapToState({ u, v: v - delta }).v
+      ) / (2 * delta);
+      assert.ok(Math.abs(numerical - orientationValue(u, v)) < 1e-8);
+    }
+  }
+});
+
+test("signed preimage count and normalized pullback integral independently give degree one", () => {
+  for (const u of [0, 0.04, 1 / 6, 0.31, 2 / 3, 0.92]) {
+    const roots = findSourcesForState(u, 0.5);
+    const signedCount = roots.reduce(
+      (sum, v) => sum + Math.sign(orientationValue(u, v)),
+      0,
+    );
+    assert.equal(signedCount, 1);
+  }
+
+  const grid = 256;
+  let pullbackIntegral = 0;
+  for (let uIndex = 0; uIndex < grid; uIndex += 1) {
+    for (let vIndex = 0; vIndex < grid; vIndex += 1) {
+      pullbackIntegral += orientationValue(
+        (uIndex + 0.5) / grid,
+        (vIndex + 0.5) / grid,
+      );
+    }
+  }
+  pullbackIntegral /= grid * grid;
+  assert.ok(Math.abs(pullbackIntegral - 1) < 1e-12);
+});
+
+test("documented cusp points satisfy the cusp rather than ordinary-fold conditions", () => {
+  const firstCusp = cuspPoints()[0];
+  const amplitude = foldAmplitude(firstCusp.u);
+  const firstV = orientationValue(firstCusp.u, firstCusp.v);
+  const secondV = -2 * Math.PI * amplitude * Math.sin(2 * Math.PI * firstCusp.v);
+  const thirdV = -((2 * Math.PI) ** 2) * amplitude * Math.cos(2 * Math.PI * firstCusp.v);
+  const amplitudeU = -0.32 * 6 * Math.PI * Math.sin(6 * Math.PI * firstCusp.u);
+  assert.ok(Math.abs(amplitude - 1) < 1e-12);
+  assert.ok(Math.abs(firstV) < 1e-12);
+  assert.ok(Math.abs(secondV) < 1e-12);
+  assert.ok(Math.abs(thirdV) > 1);
+  assert.ok(Math.abs(amplitudeU) > 1);
+});
+
+test("every philosophy claim anchor resolves to one exact source substring", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const html = readFileSync(resolve(root, "philosophy.html"), "utf8");
+  const anchors = [...html.matchAll(/data-source="([^"]+)" data-quote="([^"]+)"/g)];
+  assert.ok(anchors.length >= 12);
+  for (const [, sourcePath, quote] of anchors) {
+    const source = readFileSync(resolve(root, sourcePath), "utf8");
+    assert.equal(
+      source.split(quote).length - 1,
+      1,
+      `${sourcePath} should contain the exact philosophy anchor once: ${quote}`,
+    );
+  }
+
+  const workedRoots = findSourcesForState(0, 0.5);
+  for (const root of workedRoots) {
+    assert.ok(html.includes(root.toFixed(6)), `worked example should show v=${root.toFixed(6)}`);
+    assert.ok(
+      html.includes(Math.abs(orientationValue(0, root)).toFixed(6)),
+      `worked example should show |J|=${Math.abs(orientationValue(0, root)).toFixed(6)}`,
+    );
   }
 });
