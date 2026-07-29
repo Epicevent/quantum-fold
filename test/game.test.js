@@ -674,32 +674,30 @@ test("wrong values cannot advance the formula and correct values produce the dec
   assert.equal(state.status, "complete");
 });
 
-test("the added shooter is a separate playable mode with an explicit calculation contract", () => {
+test("the trace page exposes two distinct global T2 to S2 game contracts", () => {
   const root = resolve(import.meta.dirname, "..");
   const index = readFileSync(resolve(root, "index.html"), "utf8");
   const shooter = readFileSync(resolve(root, "shooter.html"), "utf8");
-  const renderer = readFileSync(resolve(root, "src", "shooter.js"), "utf8");
+  const renderer = readFileSync(resolve(root, "src", "trace-game.js"), "utf8");
   const philosophy = readFileSync(resolve(root, "philosophy.html"), "utf8");
 
   assert.match(index, /href="\.\/shooter\.html"/);
   for (const requiredText of [
-    "DIFFERENTIAL STRIKE",
-    "∂<sub>x</sub>P",
-    "∂<sub>y</sub>P",
-    "√det g = |λ̄|",
-    "0 DAMAGE · g<sup>−1</sup> LOCKED",
-    "∂<sub>y</sub>²P",
-    "At k*=(π,π/3): evaluate",
-    "∂<sub>y</sub>n=(0,0,0)",
-    "λ̄<sub>y</sub>=½n·(∂<sub>x</sub>n×∂<sub>y</sub>²n)=−1/6",
+    "CONTINUATION STRIKE",
+    "SHEET RUNNER",
+    "q(θ)=(sinθ,0,−cosθ)",
+    "B⁺+C⁻→0 at θ=30°",
+    "q(A,B)=normalize(qc+A eA+B eB)",
+    "S₀⁺→{S₀⁺,Snew⁺,S⁻}→Snew⁺",
+    "The receipt records lineage, not only the final count",
+    "tag the predicted birth/death pair",
   ]) {
-    assert.ok(shooter.includes(requiredText), `shooter screen should expose: ${requiredText}`);
+    assert.ok(shooter.includes(requiredText), `trace screen should expose: ${requiredText}`);
   }
-  assert.ok(renderer.includes("THE DAMAGE IS THE CALCULATION") || shooter.includes("THE DAMAGE IS THE CALCULATION"));
-  assert.ok(renderer.includes("drawAnswerChoices"));
-  assert.ok(renderer.includes("CORRECT ${event.label}"));
-  assert.match(shooter, /id="target-lambda">λ̄=PENDING/);
-  assert.match(shooter, /id="target-limit">λ̄<sub>y<\/sub>=PENDING/);
-  assert.ok(philosophy.includes("shooter는 “어느 미분이 사라져 역행렬이 막히며 다음 미분이 무엇을 복구하는가”"));
-  assert.ok(philosophy.includes("singular curvature 적분 자체를 shooter damage라고 부르지는 않는다"));
+  assert.ok(renderer.includes("drawContinuation"));
+  assert.ok(renderer.includes("drawRunner"));
+  assert.ok(renderer.includes("selectContinuationNode"));
+  assert.ok(renderer.includes("tagRunnerRoot"));
+  assert.ok(philosophy.includes("게임이 세는 것은 교점 수가 아니라, 움직이는 원상의 부호 있는 계보다"));
+  assert.ok(philosophy.includes("root count ≠ answer"));
 });

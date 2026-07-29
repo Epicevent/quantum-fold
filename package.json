@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Explore a signed-area torus map, then fight through its local derivatives in a fold shooter.",
+  "description": "Explore a signed-area torus map, reconstruct source-sheet lineages, and steer paths through folds and cusps.",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "test": "node --test",

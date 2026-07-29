@@ -1,15 +1,22 @@
-# Quantum Fold: torus map + differential strike
+# Quantum Fold: a torus map and two global-trace games
 
-Two complementary browser games use the same two-band map:
+All three browser modes use the lower-band map
 
-- **Torus mode (`index.html`)** — move the cyan point on the Brillouin-zone board and watch its lower-band Bloch image. At the amber fold, the mapped area of a small BZ cell collapses to zero; after crossing, its orientation sign reverses.
-- **Differential Strike (`shooter.html`)** — the screen asks for an actual derivative value, such as `∂xn` at a displayed `k`, and places three vector answers in the arena. The requested operator is loaded automatically; shoot the correct value to rewrite the live formula. Correct first derivatives build `√det g=|λ̄|`. At the fold, `∂yn=0` makes `g⁻¹` unavailable, opening the `∂y²n` vector question and then the decisive scalar question `λ̄y=?`. The run ends only after the player shoots `−1/6`.
+`f:T²→S²`, `d(k)=(sin kx,sin ky,1−cos kx−cos ky)`, `f(k)=−d(k)/|d(k)|`.
 
-The paper integrates `λ̄(k) dkx dky` over the entire BZ, not along the player's trail. The game's gate packets do not perform that integral: they are authored `±1` samples that isolate its sign-cancellation rule.
+- **Torus mode (`index.html`)** — move one source point in the periodic Brillouin zone and watch its Bloch-sphere image. The amber curve is `λ̄=0`; crossing it reverses orientation.
+- **A · Continuation Strike (`shooter.html`)** — a target path is fixed. Connect each source root to the same sheet in the next time layer, then strike the actual `+/−` pair born or killed at a fold. Levels cover an ordinary fold, torus seam wrap, and cusp survivor exchange.
+- **B · Sheet Runner (`shooter.html`)** — steer the target path on `S²` while all roots move on `T²`. Preserve a sheet by routing around the cusp lobe, tag a newborn pair, then cross the lobe so the newly born positive sheet becomes the final survivor.
 
-The interactive [screen-to-calculation guide](./philosophy.html) begins with one actual fold crossing, then identifies the source point, Bloch image, signed cell contribution, full-BZ integral, cusp event, inverse-metric obstruction, and Appendix A projector polynomial.
+The trace games do not accept only a root count or final integer. Their receipt stores the target path, stable sheet IDs, source roots, signs, continuation edges, fold parentage, residuals, and signed multiplicity. This distinguishes the real cusp trace
 
-## Play locally
+`S₀⁺ → {S₀⁺, Snew⁺, S⁻} → Snew⁺`
+
+from the false story in which `S₀⁺` survived.
+
+The paper integrates `λ̄(k) dkx dky` over the whole BZ, not along the player's trail. Torus-mode gate packets do not perform that integral; they remain an authored sign-cancellation proxy.
+
+## Run
 
 Requires Node.js 20 or newer. There are no runtime dependencies or build step.
 
@@ -19,9 +26,9 @@ npm start
 
 Open <http://127.0.0.1:4173>.
 
-Torus controls: **WASD / arrows** move the cyan BZ point, **Space** reveals provenance echoes, **C** rotates the Bloch-sphere view, **M** toggles sound, **P** pauses, and **R** restarts.
-
-Strike controls: **WASD / arrows** move, the mouse aims, and **click / Space** fires the currently displayed operator. Aim at the answer value, not the core. On touch screens, tap a value directly.
+- Torus: **WASD / arrows** move, **Space** shows provenance echoes, **C** rotates the representation, **M** toggles sound, **P** pauses, **R** restarts.
+- A: tap/click a root at `t−1`, then its continuation at `t`; select two roots on one layer to lock a fold pair.
+- B: **WASD / arrows** or the touch pad steer the target; tap two source roots to tag the predicted birth/death pair.
 
 ## Verify
 
@@ -29,6 +36,6 @@ Strike controls: **WASD / arrows** move, the mouse aims, and **click / Space** f
 npm test
 ```
 
-The deterministic tests independently check the analytic Berry-area density, `det g = λ̄²`, the four Whitney cusps, one-versus-three preimages, the full-BZ Chern integral, the packet-proxy distinction, mission completion, fixed-step replay, and camera invariance. They also cross-check Strike's analytic chain-rule derivatives against independent finite differences, reject incorrect answer values without advancing the formula, and verify the complete answer path through `∂yn=0`, unavailable `g⁻¹`, and `λ̄y=−1/6`. Pure simulation rules live in `src/game.js` and `src/shooter-mechanics.js`; rendering and input consume those states separately.
+The deterministic suite checks periodic wrap, orientation reversal, one/three preimages, signed cancellation, Chern-number integration, and the torus missions. Trace tests additionally check the closed-form meridian roots, stable IDs across a torus seam, `+/−` fold parentage, the cusp's `S₀→Snew` survivor exchange, deterministic fixed-step replay, Preserve/Forge/Exchange mission predicates, and the separation of simulation from rendering.
 
-GitHub Pages deploys the static game from `main` after the same test suite passes.
+Pure rules live in `src/game.js` and `src/trace-mechanics.js`; `src/trace-game.js` only handles input, sound, effects, and drawing. GitHub Pages deploys the static game from `main` after the tests pass.

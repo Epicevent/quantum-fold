@@ -327,50 +327,50 @@
         <div class="section-heading">
           <span>07</span>
           <div>
-            <p class="eyebrow">LOCAL CALCULATION AS COMBAT</p>
-            <h2 id="strike-title">두 발이 무슨 계산이고, fold에서 왜 0 damage인가</h2>
+            <p class="eyebrow">GLOBAL PREIMAGE TRACE AS PLAY</p>
+            <h2 id="strike-title">게임이 세는 것은 교점 수가 아니라, 움직이는 원상의 부호 있는 계보다</h2>
           </div>
         </div>
 
         <div class="formula-grid">
           <div class="formula-block">
-            <small>REGULAR TARGET · k=(0,0)</small>
-            <p>∂<sub>x</sub>P → g<sub>xx</sub>=1/2</p>
-            <p>∂<sub>y</sub>P → g<sub>yy</sub>=1/2, g<sub>xy</sub>=0</p>
-            <p>√det g=|λ̄|=1/2</p>
+            <small>ORDINARY FOLD · EXACT MERIDIAN TRACE</small>
+            <p><code>q(θ)=(sinθ,0,−cosθ)</code></p>
+            <p><code>θ&lt;30°: A⁺,B⁺,C⁻</code></p>
+            <p><code>θ&gt;30°: A⁺</code> · <code>B⁺+C⁻</code>가 fold에서 소멸</p>
           </div>
           <div class="formula-block">
-            <small>FOLD TARGET · k=(π,π/3)</small>
-            <p>∂<sub>y</sub>P=0, g<sub>yy</sub>=0</p>
-            <p>det g=λ̄²=0 → g<sup>−1</sup> undefined</p>
-            <p>λ̄<sub>y</sub>=½n·(∂<sub>x</sub>n×∂<sub>y</sub>²n)=−1/6</p>
+            <small>CUSP · SAME COUNT, DIFFERENT SURVIVOR</small>
+            <p><code>S₀⁺ → {S₀⁺,Snew⁺,S⁻} → Snew⁺</code></p>
+            <p>처음부터 있던 <code>S₀⁺</code>는 마지막 fold에서 <code>S⁻</code>와 소멸</p>
+            <p>마지막 한 장은 첫 fold에서 태어난 <code>Snew⁺</code></p>
           </div>
         </div>
 
         <div class="correspondence-table table-wrap">
           <table>
-            <thead><tr><th>슈터에서 일어나는 일</th><th>실제로 계산한 것</th><th>판정</th></tr></thead>
+            <thead><tr><th>게임에서 하는 일</th><th>실제로 보존하는 계산 대상</th><th>판정</th></tr></thead>
             <tbody>
-              <tr><th><code>∂<sub>x</sub>n=?</code>와 세 벡터 값이 뜸</th><td>현재 <code>k</code>를 <code>−d<sub>x</sub>/r+d(d·d<sub>x</sub>)/r³</code>에 대입해 계산</td><td><strong class="exact">정답 값을 쏴야 ∂<sub>x</sub>P 생성</strong></td></tr>
-              <tr><th><code>∂<sub>y</sub>n=?</code>의 정답 값을 쏨</th><td>두 실제 tangent로 Gram matrix를 닫고 <code>√det g=|λ̄|</code> 계산</td><td><strong class="exact">AREA DAMAGE</strong></td></tr>
-              <tr><th><code>λ̄&lt;0</code>인 적</th><td>넓이의 크기는 damage, 부호는 구면 sheet의 orientation</td><td><strong class="exact">같은 타격·반대 방향</strong></td></tr>
-              <tr><th>fold에서 정답 <code>∂<sub>y</sub>n=(0,0,0)</code>을 쏨</th><td>rank가 떨어지고 <code>g=diag(1/6,0)</code>, <code>det g=0</code></td><td><strong class="absent">g<sup>−1</sup> DOES NOT EXIST</strong></td></tr>
-              <tr><th><code>∂<sub>y</sub>²n=?</code>의 세 값 중 정답을 쏨</th><td><code>(0,1/2,−1/(2√3))</code>를 얻어 마지막 contraction 식을 연다</td><td><strong class="proxy">NEXT JET REVEALED</strong></td></tr>
-              <tr><th><code>λ̄<sub>y</sub>=½n·(∂<sub>x</sub>n×∂<sub>y</sub>²n)=?</code></th><td>세 scalar 값 <code>−1/6,+1/6,0</code> 중 직접 계산한 <code>−1/6</code>을 쏜다</td><td><strong class="proxy">DECISIVE ANSWER</strong></td></tr>
+              <tr><th>이전 root에서 다음 root로 continuation beam을 쏨</th><td><code>f⁻¹(γ)⊂T²</code>의 같은 connected sheet를 시간축으로 연결</td><td><strong class="exact">stable sheet ID</strong></td></tr>
+              <tr><th>한 time layer의 두 root를 pair로 잠금</th><td>fold에서 함께 태어나거나 죽는 두 root의 부호가 <code>+1,−1</code>인지 확인</td><td><strong class="exact">birth/death parentage</strong></td></tr>
+              <tr><th>target <code>q(A,B)</code>를 직접 움직임</th><td>Bloch sphere 경로가 critical-value curve를 어디서 어떤 방향으로 지나는지 선택</td><td><strong class="exact">path controls the event</strong></td></tr>
+              <tr><th>source root 세 개가 보임</th><td>현재 snapshot의 multiplicity일 뿐, 어느 sheet가 살아남는지는 아직 알 수 없음</td><td><strong class="proxy">root count ≠ answer</strong></td></tr>
+              <tr><th>모든 transition 뒤 receipt가 열림</th><td>target path, root 좌표, ID, <code>sgn λ̄</code>, continuation edge, parentage, residual, signed sum</td><td><strong class="exact">trace evidence</strong></td></tr>
+              <tr><th><code>Σ sgn λ̄=+1</code>이 유지됨</th><td><code>+/−</code> pair는 raw layer 수를 바꾸지만 signed multiplicity와 degree는 바꾸지 않음</td><td><strong class="exact">signed invariant</strong></td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="normal-form-boundary">
-          <b>정확한 경계</b>
-          <p><a href="./shooter.html">DIFFERENTIAL STRIKE</a>는 이 논문의 two-band map을 연쇄법칙으로 직접 미분하고, 그 결과 값을 player가 계산해 고르는 drill이다. 오답 벡터를 쏘면 식은 변하지 않는다. 기존 torus mode가 <code>T²→S²</code>, fold, 1/3 preimages와 signed coverage라는 전역 장면을 맡고, shooter는 “어느 미분이 사라져 역행렬이 막히며 다음 미분이 무엇을 복구하는가”를 한 점에서 훈련한다. 논문의 singular curvature 적분 자체를 shooter damage라고 부르지는 않는다.</p>
+          <b>A/B의 실제 차이</b>
+          <p><a href="./shooter.html">A · CONTINUATION STRIKE</a>에서는 target 경로가 고정되고 player가 root correspondence와 fold pair를 복원한다. <a href="./shooter.html">B · SHEET RUNNER</a>에서는 lineage 목표가 고정되고 player가 target 경로를 조종해 fold를 피하거나 cusp survivor를 교환한다. 둘 다 최종 root 수나 정답 숫자만으로 성공하지 않는다. 기존 torus mode는 한 source가 만드는 local image를 보여주고, 두 trace mode는 한 target의 모든 source가 시간에 따라 어떻게 이어지는지를 계산한다.</p>
         </div>
       </section>
     </main>
 
     <footer>
-      <a href="./shooter.html">FIRE THE DERIVATIVES <span aria-hidden="true">→</span></a>
-      <p>TORUS = GLOBAL MAP · STRIKE = LOCAL DIFFERENTIAL DRILL · AREA DAMAGE = √det g = |λ̄|</p>
+      <a href="./shooter.html">TRACE EVERY PREIMAGE <span aria-hidden="true">→</span></a>
+      <p>TORUS = ONE MOVING SOURCE · A = FIXED TARGET PATH / TRACE IDS · B = STEER TARGET / CHOOSE SURVIVOR</p>
     </footer>
 
     <script type="module" src="./src/philosophy.js"></script>
