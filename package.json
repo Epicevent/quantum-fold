@@ -1,0 +1,15 @@
+{
+  "name": "quantum-fold",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A deterministic arcade cartography game about folds, provenance, and signed coverage.",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test",
+    "check": "npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

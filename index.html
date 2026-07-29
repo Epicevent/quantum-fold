@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071019">
+    <meta
+      name="description"
+      content="Quantum Fold: a fast, deterministic arcade cartography game about periodic motion, folds, provenance, and signed coverage."
+    >
+    <title>Quantum Fold — Arcade Cartography</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+
+    <main class="app" id="app">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Quantum Fold home">
+          <span class="brand-mark" aria-hidden="true">
+            <i></i><i></i><i></i>
+          </span>
+          <span>
+            <b>QUANTUM FOLD</b>
+            <small>ARCADE CARTOGRAPHY</small>
+          </span>
+        </a>
+
+        <div class="mission-index">
+          <span id="mission-number">01</span>
+          <div>
+            <small>MISSION</small>
+            <b id="mission-eyebrow">PERIODIC DRIFT</b>
+          </div>
+        </div>
+
+        <div class="top-actions">
+          <button class="icon-button" id="camera-button" type="button" title="Rotate representation (C)">
+            <span aria-hidden="true">◒</span>
+            <span class="button-label">VIEW</span>
+          </button>
+          <button class="icon-button" id="sound-button" type="button" aria-pressed="true" title="Toggle sound (M)">
+            <span aria-hidden="true" id="sound-icon">◖))</span>
+            <span class="button-label">SOUND</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="mission-copy" aria-live="polite">
+        <div>
+          <span class="kicker">CURRENT DIRECTIVE</span>
+          <h1 id="mission-title">No edge is an ending</h1>
+          <p id="mission-brief">Thread the cyan relays. The first is across the right seam—keep flying.</p>
+        </div>
+        <div class="objective-box">
+          <span class="objective-icon" aria-hidden="true">⌁</span>
+          <div>
+            <small>OBJECTIVE</small>
+            <b id="mission-objective">Cross the seam and collect all 4 relays</b>
+          </div>
+          <strong id="gate-progress">0 / 4</strong>
+        </div>
+      </section>
+
+      <section class="telemetry" aria-label="Live mission telemetry">
+        <div class="telemetry-item orientation-positive" id="orientation-card">
+          <small>ORIENTATION</small>
+          <strong id="orientation-value">+</strong>
+          <span id="orientation-word">POSITIVE</span>
+        </div>
+        <div class="telemetry-item">
+          <small>VISIBLE SOURCES</small>
+          <strong id="multiplicity-value">1×</strong>
+          <span>LAYER MULTIPLICITY</span>
+        </div>
+        <div class="telemetry-item">
+          <small>LOCAL STRETCH</small>
+          <strong id="stretch-value">1.00</strong>
+          <span id="stretch-word">STEADY</span>
+        </div>
+        <div class="telemetry-item telemetry-charge">
+          <small>GLOBAL CHARGE</small>
+          <strong id="charge-value">0</strong>
+          <span id="charge-target">UNCALIBRATED</span>
+        </div>
+        <div class="telemetry-item telemetry-timer">
+          <small>COHERENCE</small>
+          <strong id="timer-value">∞</strong>
+          <span id="timer-word">OPEN RUN</span>
+        </div>
+      </section>
+
+      <section class="playfield" id="playfield">
+        <article class="panel domain-panel">
+          <div class="panel-heading">
+            <span>
+              <i class="panel-dot cyan"></i>
+              SOURCE DOMAIN
+            </span>
+            <small>PERIODIC FIELD // EDGES IDENTIFIED</small>
+          </div>
+          <div class="canvas-shell" id="domain-shell">
+            <canvas id="domain-canvas" aria-label="Periodic source domain"></canvas>
+            <span class="edge-label edge-top">WRAPS SOUTH</span>
+            <span class="edge-label edge-bottom">WRAPS NORTH</span>
+            <span class="edge-label edge-left">WRAPS EAST</span>
+            <span class="edge-label edge-right">WRAPS WEST</span>
+            <div class="cusp-alert" id="cusp-alert" hidden>
+              <span>▲</span>
+              CUSP COMPRESSION
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span><i class="legend-source"></i> SOURCE</span>
+            <span><i class="legend-fold"></i> FOLD</span>
+            <span><i class="legend-cusp"></i> CUSP</span>
+            <b id="source-coordinates">u .860 // v .200</b>
+          </div>
+        </article>
+
+        <div class="map-bridge" aria-hidden="true">
+          <span class="bridge-line"></span>
+          <div>
+            <small>FOLD MAP</small>
+            <b>ƒ</b>
+          </div>
+          <span class="bridge-line"></span>
+        </div>
+
+        <article class="panel surface-panel">
+          <div class="panel-heading">
+            <span>
+              <i class="panel-dot coral"></i>
+              STATE SURFACE
+            </span>
+            <small>DRAG OR PRESS C TO ROTATE VIEW</small>
+          </div>
+          <div class="canvas-shell" id="surface-shell">
+            <canvas id="surface-canvas" aria-label="Folded state torus"></canvas>
+            <div class="surface-readout">
+              <span>MAPPED IMAGE</span>
+              <b id="state-coordinates">θ .860 // φ .200</b>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span><i class="legend-image"></i> IMAGE</span>
+            <span><i class="legend-positive"></i> + LAYER</span>
+            <span><i class="legend-negative"></i> − LAYER</span>
+            <b id="camera-phase">VIEW 00°</b>
+          </div>
+        </article>
+      </section>
+
+      <section class="coverage" aria-label="Coverage evidence">
+        <div class="coverage-copy">
+          <span class="kicker">COVERAGE RECEIPT</span>
+          <b id="coverage-message">The image remembers every layer.</b>
+        </div>
+        <div class="coverage-meter">
+          <div class="meter-labels">
+            <span>RAW AREA <b id="raw-value">0</b></span>
+            <span>SIGNED AREA <b id="signed-value">0</b></span>
+          </div>
+          <div class="meter-track">
+            <i class="raw-meter" id="raw-meter"></i>
+            <i class="signed-meter" id="signed-meter"></i>
+            <span class="meter-zero"></span>
+          </div>
+          <div class="meter-scale">
+            <span>−</span><span>CANCEL</span><span>+</span>
+          </div>
+        </div>
+        <div class="control-hint">
+          <span class="keys" aria-hidden="true"><i>W</i><i>A</i><i>S</i><i>D</i></span>
+          <span>
+            <b>STEER SOURCE</b>
+            <small id="mission-hint">Move with WASD or the arrow keys. Space sends a survey pulse.</small>
+          </span>
+        </div>
+      </section>
+    </main>
+
+    <div class="mobile-controls" aria-label="Touch controls">
+      <div class="touch-pad">
+        <button type="button" data-direction="up" aria-label="Move up">▲</button>
+        <button type="button" data-direction="left" aria-label="Move left">◀</button>
+        <button type="button" data-direction="down" aria-label="Move down">▼</button>
+        <button type="button" data-direction="right" aria-label="Move right">▶</button>
+      </div>
+      <button class="pulse-button" id="pulse-button" type="button">PULSE</button>
+    </div>
+
+    <div class="start-screen" id="start-screen">
+      <div class="start-orbit" aria-hidden="true">
+        <i></i><i></i><i></i>
+        <b>ƒ</b>
+      </div>
+      <p class="start-kicker">FIELD PILOT // ORIENTATION UNKNOWN</p>
+      <h2>FLY THE SOURCE.<br><em>READ THE FOLD.</em></h2>
+      <p class="start-copy">
+        One controllable point. Two linked worlds.<br>
+        What looks covered may still cancel.
+      </p>
+      <button class="primary-button" id="start-button" type="button">
+        <span>ENTER THE FIELD</span>
+        <kbd>ENTER</kbd>
+      </button>
+      <small>HEADPHONES RECOMMENDED · NO PRIOR THEORY REQUIRED</small>
+    </div>
+
+    <div class="pause-screen" id="pause-screen" hidden>
+      <span>FIELD SUSPENDED</span>
+      <b>PAUSED</b>
+      <small>Press P to resume</small>
+    </div>
+
+    <div class="evidence-overlay" id="evidence-overlay" hidden>
+      <section class="evidence-card" role="dialog" aria-modal="true" aria-labelledby="evidence-title">
+        <div class="evidence-status" id="evidence-status">MISSION LOCKED</div>
+        <p id="evidence-eyebrow">RUN 01 // EVIDENCE</p>
+        <h2 id="evidence-title">The seam is a passage.</h2>
+        <p id="evidence-summary">Your source returned through the opposite edge and its mapped image stayed part of the same run.</p>
+
+        <div class="evidence-paths">
+          <figure>
+            <canvas id="evidence-domain" width="300" height="150"></canvas>
+            <figcaption>DOMAIN PATH</figcaption>
+          </figure>
+          <figure>
+            <canvas id="evidence-state" width="300" height="150"></canvas>
+            <figcaption>MAPPED PATH</figcaption>
+          </figure>
+        </div>
+
+        <div class="evidence-stats">
+          <div><small>FINAL SIGN</small><b id="evidence-sign">+</b></div>
+          <div><small>MULTIPLICITY</small><b id="evidence-multiplicity">1×</b></div>
+          <div><small>RAW AREA</small><b id="evidence-raw">0</b></div>
+          <div><small>SIGNED AREA</small><b id="evidence-signed">0</b></div>
+          <div><small>INTEGER</small><b id="evidence-charge">0</b></div>
+          <div><small>TIME</small><b id="evidence-time">0.0s</b></div>
+        </div>
+
+        <div class="evidence-actions">
+          <button class="secondary-button" id="retry-button" type="button">REPLAY <kbd>R</kbd></button>
+          <button class="primary-button" id="next-button" type="button">
+            <span id="next-label">NEXT MISSION</span>
+            <kbd>ENTER</kbd>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

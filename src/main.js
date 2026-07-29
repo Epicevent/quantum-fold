@@ -1,0 +1,1138 @@
+import {
+  FIXED_STEP,
+  TAU,
+  chargeFromSignedArea,
+  createMissionState,
+  cuspPoints,
+  foldBranchesAtU,
+  foldPhase,
+  makeMissions,
+  mapToState,
+  missionEvidence,
+  orientationAt,
+  orientationValue,
+  periodicDistance,
+  signedPeriodicDelta,
+  stepMission,
+} from "./game.js";
+
+const missions = makeMissions();
+
+const ui = {
+  missionNumber: document.querySelector("#mission-number"),
+  missionEyebrow: document.querySelector("#mission-eyebrow"),
+  missionTitle: document.querySelector("#mission-title"),
+  missionBrief: document.querySelector("#mission-brief"),
+  missionObjective: document.querySelector("#mission-objective"),
+  missionHint: document.querySelector("#mission-hint"),
+  gateProgress: document.querySelector("#gate-progress"),
+  orientationCard: document.querySelector("#orientation-card"),
+  orientationValue: document.querySelector("#orientation-value"),
+  orientationWord: document.querySelector("#orientation-word"),
+  multiplicityValue: document.querySelector("#multiplicity-value"),
+  stretchValue: document.querySelector("#stretch-value"),
+  stretchWord: document.querySelector("#stretch-word"),
+  chargeValue: document.querySelector("#charge-value"),
+  chargeTarget: document.querySelector("#charge-target"),
+  timerValue: document.querySelector("#timer-value"),
+  timerWord: document.querySelector("#timer-word"),
+  sourceCoordinates: document.querySelector("#source-coordinates"),
+  stateCoordinates: document.querySelector("#state-coordinates"),
+  cameraPhase: document.querySelector("#camera-phase"),
+  rawValue: document.querySelector("#raw-value"),
+  signedValue: document.querySelector("#signed-value"),
+  rawMeter: document.querySelector("#raw-meter"),
+  signedMeter: document.querySelector("#signed-meter"),
+  coverageMessage: document.querySelector("#coverage-message"),
+  cuspAlert: document.querySelector("#cusp-alert"),
+  startScreen: document.querySelector("#start-screen"),
+  startButton: document.querySelector("#start-button"),
+  pauseScreen: document.querySelector("#pause-screen"),
+  evidenceOverlay: document.querySelector("#evidence-overlay"),
+  evidenceStatus: document.querySelector("#evidence-status"),
+  evidenceEyebrow: document.querySelector("#evidence-eyebrow"),
+  evidenceTitle: document.querySelector("#evidence-title"),
+  evidenceSummary: document.querySelector("#evidence-summary"),
+  evidenceSign: document.querySelector("#evidence-sign"),
+  evidenceMultiplicity: document.querySelector("#evidence-multiplicity"),
+  evidenceRaw: document.querySelector("#evidence-raw"),
+  evidenceSigned: document.querySelector("#evidence-signed"),
+  evidenceCharge: document.querySelector("#evidence-charge"),
+  evidenceTime: document.querySelector("#evidence-time"),
+  retryButton: document.querySelector("#retry-button"),
+  nextButton: document.querySelector("#next-button"),
+  nextLabel: document.querySelector("#next-label"),
+  soundButton: document.querySelector("#sound-button"),
+  soundIcon: document.querySelector("#sound-icon"),
+  cameraButton: document.querySelector("#camera-button"),
+  pulseButton: document.querySelector("#pulse-button"),
+};
+
+const domainCanvas = document.querySelector("#domain-canvas");
+const surfaceCanvas = document.querySelector("#surface-canvas");
+const evidenceDomain = document.querySelector("#evidence-domain");
+const evidenceState = document.querySelector("#evidence-state");
+
+let game = createMissionState(0, missions);
+let accumulated = 0;
+let previousTime = performance.now();
+let paused = false;
+let startedExperience = false;
+let pulseQueued = false;
+let overlayTimer = null;
+let lastStatus = game.status;
+
+const camera = {
+  yaw: -0.34,
+  pitch: 0.72,
+  targetYaw: -0.34,
+  targetPitch: 0.72,
+  dragging: false,
+  pointerX: 0,
+  pointerY: 0,
+};
+
+const keys = new Set();
+const touchDirections = new Set();
+
+class SoundField {
+  constructor() {
+    this.context = null;
+    this.output = null;
+    this.enabled = true;
+    this.lastCuspTone = -Infinity;
+  }
+
+  ensure() {
+    if (!this.enabled) return;
+    if (!this.context) {
+      this.context = new AudioContext();
+      this.output = this.context.createGain();
+      this.output.gain.value = 0.28;
+      this.output.connect(this.context.destination);
+    }
+    if (this.context.state === "suspended") this.context.resume();
+  }
+
+  tone(frequency, duration = 0.12, options = {}) {
+    if (!this.enabled) return;
+    this.ensure();
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    const oscillator = this.context.createOscillator();
+    const gain = this.context.createGain();
+    oscillator.type = options.type ?? "sine";
+    oscillator.frequency.setValueAtTime(frequency, now);
+    if (options.slide) {
+      oscillator.frequency.exponentialRampToValueAtTime(options.slide, now + duration);
+    }
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(options.volume ?? 0.13, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain);
+    gain.connect(this.output);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.02);
+  }
+
+  chord(frequencies, spacing = 0.06) {
+    frequencies.forEach((frequency, index) => {
+      window.setTimeout(() => this.tone(frequency, 0.22, {
+        type: index % 2 ? "triangle" : "sine",
+        volume: 0.1,
+      }), index * spacing * 1000);
+    });
+  }
+
+  event(event) {
+    if (event.type === "collect") {
+      this.tone(event.sign > 0 ? 620 : 230, 0.16, {
+        slide: event.sign > 0 ? 890 : 145,
+        type: event.sign > 0 ? "sine" : "sawtooth",
+      });
+    } else if (event.type === "orientation") {
+      this.tone(event.orientation > 0 ? 510 : 170, 0.2, {
+        slide: event.orientation > 0 ? 720 : 115,
+        type: "triangle",
+        volume: 0.09,
+      });
+    } else if (event.type === "wrap") {
+      this.tone(330, 0.18, { slide: 660, type: "sine", volume: 0.08 });
+    } else if (event.type === "pulse") {
+      this.tone(880, 0.35, { slide: 220, type: "sine", volume: 0.075 });
+    } else if (event.type === "complete") {
+      this.chord([392, 523.25, 659.25, 783.99], 0.075);
+    } else if (event.type === "failed") {
+      this.chord([220, 185, 146], 0.09);
+    }
+  }
+
+  toggle() {
+    this.enabled = !this.enabled;
+    if (this.enabled) {
+      this.ensure();
+      this.tone(520, 0.1, { slide: 720, volume: 0.07 });
+    }
+    return this.enabled;
+  }
+}
+
+const sound = new SoundField();
+
+function canvasFrame(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const pixelWidth = Math.round(width * ratio);
+  const pixelHeight = Math.round(height * ratio);
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
+  const context = canvas.getContext("2d");
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  return { context, width, height, ratio };
+}
+
+function domainPoint(point, width, height, pad = 26) {
+  return {
+    x: pad + point.u * (width - pad * 2),
+    y: pad + point.v * (height - pad * 2),
+  };
+}
+
+function drawTriangle(context, x, y, radius, angle, color) {
+  context.save();
+  context.translate(x, y);
+  context.rotate(angle);
+  context.beginPath();
+  context.moveTo(radius * 1.15, 0);
+  context.lineTo(-radius * 0.78, radius * 0.68);
+  context.lineTo(-radius * 0.45, 0);
+  context.lineTo(-radius * 0.78, -radius * 0.68);
+  context.closePath();
+  context.fillStyle = color;
+  context.shadowColor = color;
+  context.shadowBlur = 18;
+  context.fill();
+  context.restore();
+}
+
+function drawFoldDomain(context, width, height, time) {
+  const pad = 26;
+  const usableWidth = width - pad * 2;
+  const usableHeight = height - pad * 2;
+  const samples = Math.max(180, Math.round(usableWidth / 2));
+
+  context.save();
+  for (let index = 0; index < samples; index += 1) {
+    const u = (index + 0.5) / samples;
+    const branches = foldBranchesAtU(u);
+    if (branches.length !== 2) continue;
+    const x = pad + (index / samples) * usableWidth;
+    const y1 = pad + branches[0] * usableHeight;
+    const y2 = pad + branches[1] * usableHeight;
+    context.fillStyle = "rgba(255, 111, 145, 0.075)";
+    context.fillRect(x, y1, usableWidth / samples + 1, y2 - y1);
+  }
+
+  for (let branchIndex = 0; branchIndex < 2; branchIndex += 1) {
+    context.beginPath();
+    let drawing = false;
+    for (let index = 0; index <= samples; index += 1) {
+      const u = index / samples;
+      const branches = foldBranchesAtU(u);
+      if (branches.length !== 2) {
+        drawing = false;
+        continue;
+      }
+      const point = domainPoint({ u, v: branches[branchIndex] }, width, height, pad);
+      if (!drawing) {
+        context.moveTo(point.x, point.y);
+        drawing = true;
+      } else {
+        context.lineTo(point.x, point.y);
+      }
+    }
+    context.strokeStyle = "rgba(255, 201, 107, 0.8)";
+    context.lineWidth = 1.25;
+    context.shadowColor = "#ffc96b";
+    context.shadowBlur = 7;
+    context.stroke();
+  }
+
+  for (const cusp of cuspPoints()) {
+    const point = domainPoint(cusp, width, height, pad);
+    const pulse = 1 + 0.18 * Math.sin(time * 0.006 + cusp.u * TAU);
+    context.save();
+    context.translate(point.x, point.y);
+    context.rotate(Math.PI / 4);
+    context.strokeStyle = "rgba(255, 201, 107, 0.95)";
+    context.fillStyle = "rgba(255, 201, 107, 0.16)";
+    context.lineWidth = 1;
+    context.shadowColor = "#ffc96b";
+    context.shadowBlur = 13;
+    context.beginPath();
+    context.rect(-5 * pulse, -5 * pulse, 10 * pulse, 10 * pulse);
+    context.fill();
+    context.stroke();
+    context.restore();
+  }
+  context.restore();
+}
+
+function gateVisibility(gate, index) {
+  if (game.collected.includes(gate.id)) return 0.2;
+  if (game.mission.ordered && index > game.nextGate) return 0.12;
+  if (gate.kind === "source") return 1;
+  if (gate.kind === "echo") return 0.18 + game.pulse * 0.82;
+  return game.pulse > 0 ? 0.16 + game.pulse * 0.48 : 0;
+}
+
+function drawDomainGate(context, gate, index, width, height, time) {
+  const alpha = gateVisibility(gate, index);
+  if (alpha <= 0) return;
+  const point = domainPoint(gate, width, height);
+  const active = !game.mission.ordered || index === game.nextGate;
+  const collected = game.collected.includes(gate.id);
+  const radius = 8 + (active ? 2.2 * Math.sin(time * 0.004 + index) : 0);
+  const color = gate.requiredOrientation < 0 ? "#ff6f91" : "#65ffe2";
+
+  context.save();
+  context.globalAlpha = alpha;
+  context.translate(point.x, point.y);
+  context.strokeStyle = collected ? "rgba(121,145,143,.55)" : color;
+  context.lineWidth = active ? 1.6 : 1;
+  context.shadowColor = color;
+  context.shadowBlur = active ? 14 : 5;
+  context.beginPath();
+  context.arc(0, 0, radius, 0, TAU);
+  context.stroke();
+  context.setLineDash([2, 4]);
+  context.rotate(-time * 0.0004 * (gate.requiredOrientation < 0 ? -1 : 1));
+  context.beginPath();
+  context.arc(0, 0, radius + 5, 0, Math.PI * 1.45);
+  context.stroke();
+  context.setLineDash([]);
+  context.fillStyle = collected ? "#79918f" : color;
+  context.font = "7px monospace";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.shadowBlur = 0;
+  context.fillText(collected ? "✓" : String(index + 1).padStart(2, "0"), 0, 0);
+  context.restore();
+}
+
+function drawDomainTrail(context, width, height) {
+  const trail = game.sourceTrail;
+  if (trail.length < 2) return;
+  context.save();
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  for (let index = 1; index < trail.length; index += 1) {
+    const previous = trail[index - 1];
+    const current = trail[index];
+    if (
+      Math.abs(current.source.u - previous.source.u) > 0.5
+      || Math.abs(current.source.v - previous.source.v) > 0.5
+    ) continue;
+    const start = domainPoint(previous.source, width, height);
+    const end = domainPoint(current.source, width, height);
+    const age = (trail.length - index) / trail.length;
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+    context.lineTo(end.x, end.y);
+    context.strokeStyle = current.orientation > 0
+      ? `rgba(101,255,226,${0.18 + (1 - age) * 0.52})`
+      : `rgba(255,111,145,${0.2 + (1 - age) * 0.55})`;
+    context.lineWidth = 1 + (1 - age) * 0.65;
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawDomainPlayer(context, width, height, time) {
+  const player = domainPoint(game.source, width, height);
+  const speed = Math.hypot(game.source.vx, game.source.vy);
+  const angle = speed > 0.002
+    ? Math.atan2(game.source.vy, game.source.vx)
+    : -Math.PI / 2;
+  const color = game.orientation > 0 ? "#65ffe2" : "#ff6f91";
+
+  const copies = [{ x: player.x, y: player.y, alpha: 1 }];
+  const pad = 26;
+  const usableWidth = width - pad * 2;
+  const usableHeight = height - pad * 2;
+  const threshold = 0.065;
+  if (game.source.u < threshold) copies.push({ x: player.x + usableWidth, y: player.y, alpha: 0.35 });
+  if (game.source.u > 1 - threshold) copies.push({ x: player.x - usableWidth, y: player.y, alpha: 0.35 });
+  if (game.source.v < threshold) copies.push({ x: player.x, y: player.y + usableHeight, alpha: 0.35 });
+  if (game.source.v > 1 - threshold) copies.push({ x: player.x, y: player.y - usableHeight, alpha: 0.35 });
+
+  for (const copy of copies) {
+    context.save();
+    context.globalAlpha = copy.alpha;
+    context.strokeStyle = color;
+    context.globalAlpha *= 0.22;
+    context.beginPath();
+    context.arc(copy.x, copy.y, 12 + Math.sin(time * 0.006) * 1.5, 0, TAU);
+    context.stroke();
+    context.restore();
+    drawTriangle(context, copy.x, copy.y, 8.5, angle, color);
+  }
+
+  if (game.pulse > 0) {
+    const radius = (1 - game.pulse) * Math.min(width, height) * 0.34 + 15;
+    context.save();
+    context.strokeStyle = `rgba(101,255,226,${game.pulse * 0.55})`;
+    context.lineWidth = 1;
+    context.beginPath();
+    context.arc(player.x, player.y, radius, 0, TAU);
+    context.stroke();
+    context.restore();
+  }
+}
+
+function drawDomain(time) {
+  const { context, width, height } = canvasFrame(domainCanvas);
+  context.clearRect(0, 0, width, height);
+  const pad = 26;
+  const left = pad;
+  const top = pad;
+  const arenaWidth = width - pad * 2;
+  const arenaHeight = height - pad * 2;
+
+  const gradient = context.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "rgba(9, 27, 36, 0.96)");
+  gradient.addColorStop(1, "rgba(4, 14, 21, 0.98)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+
+  context.save();
+  context.beginPath();
+  context.rect(left, top, arenaWidth, arenaHeight);
+  context.clip();
+
+  context.strokeStyle = "rgba(121, 177, 174, 0.075)";
+  context.lineWidth = 1;
+  for (let index = 0; index <= 12; index += 1) {
+    const x = left + (index / 12) * arenaWidth;
+    const y = top + (index / 12) * arenaHeight;
+    context.beginPath();
+    context.moveTo(x, top);
+    context.lineTo(x, top + arenaHeight);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(left, y);
+    context.lineTo(left + arenaWidth, y);
+    context.stroke();
+  }
+
+  context.strokeStyle = "rgba(101, 255, 226, 0.08)";
+  context.setLineDash([1, 7]);
+  for (let index = -12; index < 24; index += 1) {
+    context.beginPath();
+    context.moveTo(left + index * 38 + (time * 0.003) % 38, top);
+    context.lineTo(left + index * 38 + arenaHeight + (time * 0.003) % 38, top + arenaHeight);
+    context.stroke();
+  }
+  context.setLineDash([]);
+
+  drawFoldDomain(context, width, height, time);
+  drawDomainTrail(context, width, height);
+
+  if (game.mission.home) {
+    const home = domainPoint(game.mission.home, width, height);
+    const ready = game.collected.length === game.mission.gates.length;
+    context.save();
+    context.strokeStyle = ready ? "#ffc96b" : "rgba(255,201,107,.25)";
+    context.lineWidth = ready ? 2 : 1;
+    context.setLineDash([4, 5]);
+    context.beginPath();
+    context.arc(home.x, home.y, 18 + Math.sin(time * 0.004) * 2, 0, TAU);
+    context.stroke();
+    context.setLineDash([]);
+    context.fillStyle = ready ? "#ffc96b" : "rgba(255,201,107,.45)";
+    context.font = "7px monospace";
+    context.textAlign = "center";
+    context.fillText("HOME", home.x, home.y + 2);
+    context.restore();
+  }
+
+  game.mission.gates.forEach((gate, index) => {
+    drawDomainGate(context, gate, index, width, height, time);
+  });
+  drawDomainPlayer(context, width, height, time);
+  context.restore();
+
+  context.save();
+  context.strokeStyle = game.cuspRisk < 0.068
+    ? `rgba(255,201,107,${0.55 + Math.sin(time * 0.012) * 0.25})`
+    : "rgba(101,255,226,.22)";
+  context.lineWidth = game.cuspRisk < 0.068 ? 2 : 1;
+  context.strokeRect(left + 0.5, top + 0.5, arenaWidth - 1, arenaHeight - 1);
+  context.restore();
+}
+
+function torusWorld(point) {
+  const theta = TAU * point.u;
+  const phi = TAU * point.v;
+  const major = 1.34;
+  const minor = 0.54;
+  return {
+    x: (major + minor * Math.cos(phi)) * Math.cos(theta),
+    y: (major + minor * Math.cos(phi)) * Math.sin(theta),
+    z: minor * Math.sin(phi),
+  };
+}
+
+function projectWorld(world, width, height) {
+  const cosYaw = Math.cos(camera.yaw);
+  const sinYaw = Math.sin(camera.yaw);
+  const cosPitch = Math.cos(camera.pitch);
+  const sinPitch = Math.sin(camera.pitch);
+  const rotatedX = world.x * cosYaw - world.y * sinYaw;
+  const rotatedY = world.x * sinYaw + world.y * cosYaw;
+  const screenY = world.z * cosPitch - rotatedY * sinPitch;
+  const depth = rotatedY * cosPitch + world.z * sinPitch;
+  const scale = Math.min(width / 4.45, height / 2.8);
+  return {
+    x: width / 2 + rotatedX * scale,
+    y: height / 2 + screenY * scale,
+    depth,
+    scale,
+  };
+}
+
+function projectTorus(point, width, height) {
+  return projectWorld(torusWorld(point), width, height);
+}
+
+function buildTorusMesh(width, height) {
+  const uSegments = 44;
+  const vSegments = 19;
+  const quads = [];
+  for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
+    for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
+      const u0 = uIndex / uSegments;
+      const u1 = (uIndex + 1) / uSegments;
+      const v0 = vIndex / vSegments;
+      const v1 = (vIndex + 1) / vSegments;
+      const points = [
+        projectTorus({ u: u0, v: v0 }, width, height),
+        projectTorus({ u: u1, v: v0 }, width, height),
+        projectTorus({ u: u1, v: v1 }, width, height),
+        projectTorus({ u: u0, v: v1 }, width, height),
+      ];
+      quads.push({
+        points,
+        depth: points.reduce((sum, point) => sum + point.depth, 0) / points.length,
+        u: (u0 + u1) / 2,
+        v: (v0 + v1) / 2,
+      });
+    }
+  }
+  return quads.sort((a, b) => a.depth - b.depth);
+}
+
+function drawTorusMesh(context, width, height) {
+  const mesh = buildTorusMesh(width, height);
+  for (const quad of mesh) {
+    const light = Math.round(10 + ((quad.depth + 1.8) / 3.6) * 9);
+    const stripe = Math.sin(quad.v * TAU * 4 + quad.u * TAU) * 2;
+    context.beginPath();
+    context.moveTo(quad.points[0].x, quad.points[0].y);
+    for (let index = 1; index < quad.points.length; index += 1) {
+      context.lineTo(quad.points[index].x, quad.points[index].y);
+    }
+    context.closePath();
+    context.fillStyle = `hsl(${184 + stripe * 2} 29% ${light + stripe}%)`;
+    context.strokeStyle = quad.depth > 0.3
+      ? "rgba(117, 198, 190, 0.12)"
+      : "rgba(66, 112, 111, 0.055)";
+    context.lineWidth = 0.55;
+    context.fill();
+    context.stroke();
+  }
+}
+
+function drawProjectedCurve(context, points, width, height, options = {}) {
+  if (points.length < 2) return;
+  context.save();
+  context.beginPath();
+  let previous = projectTorus(points[0], width, height);
+  context.moveTo(previous.x, previous.y);
+  for (let index = 1; index < points.length; index += 1) {
+    const projected = projectTorus(points[index], width, height);
+    context.lineTo(projected.x, projected.y);
+    previous = projected;
+  }
+  context.strokeStyle = options.color ?? "rgba(255,201,107,.7)";
+  context.lineWidth = options.width ?? 1;
+  context.globalAlpha = options.alpha ?? 1;
+  context.shadowColor = options.shadow ?? options.color ?? "#ffc96b";
+  context.shadowBlur = options.blur ?? 0;
+  context.stroke();
+  context.restore();
+}
+
+function drawStateFolds(context, width, height) {
+  const samples = 360;
+  for (let branchIndex = 0; branchIndex < 2; branchIndex += 1) {
+    let segment = [];
+    for (let index = 0; index <= samples; index += 1) {
+      const u = index / samples;
+      const branches = foldBranchesAtU(u);
+      if (branches.length !== 2) {
+        if (segment.length > 1) {
+          drawProjectedCurve(context, segment, width, height, {
+            color: "rgba(255,201,107,.66)",
+            width: 1.1,
+            blur: 7,
+          });
+        }
+        segment = [];
+        continue;
+      }
+      segment.push({
+        u,
+        v: foldPhase(u, branches[branchIndex]),
+      });
+    }
+    if (segment.length > 1) {
+      drawProjectedCurve(context, segment, width, height, {
+        color: "rgba(255,201,107,.66)",
+        width: 1.1,
+        blur: 7,
+      });
+    }
+  }
+}
+
+function drawStateTrail(context, width, height) {
+  const trail = game.sourceTrail;
+  if (trail.length < 2) return;
+  context.save();
+  context.lineCap = "round";
+  for (let index = 1; index < trail.length; index += 1) {
+    const previous = projectTorus(trail[index - 1].mapped, width, height);
+    const current = projectTorus(trail[index].mapped, width, height);
+    const freshness = index / trail.length;
+    context.beginPath();
+    context.moveTo(previous.x, previous.y);
+    context.lineTo(current.x, current.y);
+    context.strokeStyle = trail[index].orientation > 0
+      ? `rgba(101,255,226,${0.12 + freshness * 0.6})`
+      : `rgba(255,111,145,${0.14 + freshness * 0.62})`;
+    context.lineWidth = 1 + freshness * 1.15;
+    context.shadowColor = trail[index].orientation > 0 ? "#65ffe2" : "#ff6f91";
+    context.shadowBlur = freshness > 0.85 ? 6 : 0;
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawStateGate(context, gate, index, width, height, time) {
+  const collected = game.collected.includes(gate.id);
+  const active = !game.mission.ordered || index === game.nextGate;
+  const alpha = collected ? 0.22 : (active ? 1 : 0.18);
+  const point = projectTorus({ u: gate.stateU, v: gate.stateV }, width, height);
+  const scale = Math.max(0.72, 1 + point.depth * 0.11);
+  const color = gate.requiredOrientation < 0 ? "#ff6f91" : "#65ffe2";
+  const radius = (9 + (active ? Math.sin(time * 0.004 + index) * 2 : 0)) * scale;
+
+  context.save();
+  context.globalAlpha = alpha;
+  context.translate(point.x, point.y);
+  context.strokeStyle = color;
+  context.fillStyle = "rgba(5,14,20,.75)";
+  context.lineWidth = active ? 1.6 : 1;
+  context.shadowColor = color;
+  context.shadowBlur = active ? 16 : 4;
+  context.beginPath();
+  context.arc(0, 0, radius, 0, TAU);
+  context.fill();
+  context.stroke();
+  context.setLineDash([2, 3]);
+  context.beginPath();
+  context.arc(0, 0, radius + 5, time * 0.001, time * 0.001 + Math.PI * 1.45);
+  context.stroke();
+  context.setLineDash([]);
+  context.shadowBlur = 0;
+  context.fillStyle = color;
+  context.font = "7px monospace";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(collected ? "✓" : String(index + 1).padStart(2, "0"), 0, 0);
+  context.restore();
+}
+
+function drawCoverageStamps(context, width, height, time) {
+  for (let index = 0; index < game.collected.length; index += 1) {
+    const gate = game.mission.gates.find((candidate) => candidate.id === game.collected[index]);
+    if (!gate) continue;
+    const projected = projectTorus({ u: gate.stateU, v: gate.stateV }, width, height);
+    const sign = gate.requiredOrientation;
+    context.save();
+    context.globalAlpha = 0.22;
+    context.strokeStyle = sign > 0 ? "#65ffe2" : "#ff6f91";
+    context.lineWidth = 5;
+    context.shadowColor = context.strokeStyle;
+    context.shadowBlur = 17;
+    context.beginPath();
+    context.arc(
+      projected.x,
+      projected.y,
+      16 + ((time * 0.008 + index * 3) % 11),
+      0,
+      TAU,
+    );
+    context.stroke();
+    context.restore();
+  }
+}
+
+function drawMappedPlayer(context, width, height, time) {
+  const point = projectTorus(game.mapped, width, height);
+  const color = game.orientation > 0 ? "#65ffe2" : "#ff6f91";
+  const pulse = 1 + Math.sin(time * 0.008) * 0.08;
+  context.save();
+  context.translate(point.x, point.y);
+  context.rotate(time * 0.0012 * game.orientation);
+  context.strokeStyle = color;
+  context.fillStyle = "#f2fffc";
+  context.shadowColor = color;
+  context.shadowBlur = 22;
+  context.lineWidth = 1.5;
+  context.beginPath();
+  context.rect(-6 * pulse, -6 * pulse, 12 * pulse, 12 * pulse);
+  context.fill();
+  context.stroke();
+  context.restore();
+
+  if (game.multiplicity === 3) {
+    context.save();
+    context.strokeStyle = "rgba(255,201,107,.62)";
+    context.setLineDash([2, 4]);
+    for (let ring = 0; ring < 3; ring += 1) {
+      context.beginPath();
+      context.arc(point.x, point.y, 12 + ring * 4 + Math.sin(time * 0.004 + ring) * 1.5, 0, TAU);
+      context.stroke();
+    }
+    context.restore();
+  }
+}
+
+function drawSurface(time) {
+  const { context, width, height } = canvasFrame(surfaceCanvas);
+  context.clearRect(0, 0, width, height);
+  const background = context.createRadialGradient(
+    width * 0.5,
+    height * 0.45,
+    0,
+    width * 0.5,
+    height * 0.5,
+    Math.max(width, height) * 0.7,
+  );
+  background.addColorStop(0, "rgba(21, 38, 48, .92)");
+  background.addColorStop(0.55, "rgba(7, 16, 24, .97)");
+  background.addColorStop(1, "rgba(4, 10, 15, 1)");
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+
+  context.save();
+  context.strokeStyle = "rgba(117, 170, 169, .035)";
+  for (let radius = 40; radius < Math.max(width, height); radius += 46) {
+    context.beginPath();
+    context.arc(width / 2, height / 2, radius, 0, TAU);
+    context.stroke();
+  }
+  context.restore();
+
+  drawTorusMesh(context, width, height);
+  drawStateFolds(context, width, height);
+  drawCoverageStamps(context, width, height, time);
+  drawStateTrail(context, width, height);
+  game.mission.gates.forEach((gate, index) => {
+    drawStateGate(context, gate, index, width, height, time);
+  });
+  drawMappedPlayer(context, width, height, time);
+}
+
+function formatSigned(value, precision = 0) {
+  const fixed = Number(value).toFixed(precision);
+  if (value > 0) return `+${fixed}`;
+  return fixed;
+}
+
+function updateTelemetry() {
+  const mission = game.mission;
+  ui.missionNumber.textContent = mission.number;
+  ui.missionEyebrow.textContent = mission.eyebrow;
+  ui.missionTitle.textContent = mission.title;
+  ui.missionBrief.textContent = mission.brief;
+  ui.missionObjective.textContent = mission.objective;
+  ui.missionHint.textContent = mission.hint;
+  ui.gateProgress.textContent = `${game.collected.length} / ${mission.gates.length}`;
+
+  ui.orientationValue.textContent = game.orientation > 0 ? "+" : "−";
+  ui.orientationWord.textContent = game.orientation > 0 ? "POSITIVE" : "REVERSED";
+  ui.orientationCard.classList.toggle("orientation-positive", game.orientation > 0);
+  ui.orientationCard.classList.toggle("orientation-negative", game.orientation < 0);
+  ui.multiplicityValue.textContent = `${game.multiplicity}×`;
+
+  const stretch = Math.abs(orientationValue(game.source.u, game.source.v));
+  ui.stretchValue.textContent = stretch.toFixed(2);
+  ui.stretchWord.textContent = stretch < 0.18
+    ? "COMPRESSED"
+    : stretch > 1.7
+      ? "STRETCHED"
+      : "STEADY";
+
+  const charge = chargeFromSignedArea(game.coverage.signedArea);
+  ui.chargeValue.textContent = formatSigned(charge);
+  ui.chargeTarget.textContent = mission.targetCharge === null
+    ? "UNCALIBRATED"
+    : `TARGET ${formatSigned(mission.targetCharge)}`;
+
+  if (game.remaining === null) {
+    ui.timerValue.textContent = "∞";
+    ui.timerWord.textContent = "OPEN RUN";
+  } else {
+    ui.timerValue.textContent = Math.ceil(game.remaining).toString();
+    ui.timerWord.textContent = game.remaining < 15 ? "FIELD DECAY" : "SECONDS";
+  }
+
+  ui.sourceCoordinates.textContent = `u ${game.source.u.toFixed(3)} // v ${game.source.v.toFixed(3)}`;
+  ui.stateCoordinates.textContent = `θ ${game.mapped.u.toFixed(3)} // φ ${game.mapped.v.toFixed(3)}`;
+  ui.cameraPhase.textContent = `VIEW ${String(Math.round((((camera.yaw % TAU) + TAU) % TAU) * 180 / Math.PI)).padStart(3, "0")}°`;
+  ui.rawValue.textContent = game.coverage.rawArea.toFixed(0);
+  ui.signedValue.textContent = formatSigned(game.coverage.signedArea);
+
+  const maxArea = Math.max(1, mission.gates.length);
+  ui.rawMeter.style.width = `${Math.min(50, (game.coverage.rawArea / maxArea) * 50)}%`;
+  const signedRatio = Math.max(-1, Math.min(1, game.coverage.signedArea / maxArea));
+  ui.signedMeter.style.left = signedRatio < 0 ? `${50 + signedRatio * 50}%` : "50%";
+  ui.signedMeter.style.width = `${Math.abs(signedRatio) * 50}%`;
+  ui.signedMeter.style.background = signedRatio < 0
+    ? "linear-gradient(90deg, #ff6f91, rgba(255,111,145,.54))"
+    : "linear-gradient(90deg, rgba(101,255,226,.54), #65ffe2)";
+
+  if (game.coverage.rawArea === 0) {
+    ui.coverageMessage.textContent = "The image remembers every layer.";
+  } else if (Math.abs(game.coverage.signedArea) < game.coverage.rawArea) {
+    ui.coverageMessage.textContent = "Raw sweep rose. Opposite layers cancelled.";
+  } else {
+    ui.coverageMessage.textContent = "Every captured layer currently reinforces.";
+  }
+  ui.cuspAlert.hidden = game.cuspRisk >= 0.068;
+}
+
+const completionCopy = {
+  seam: {
+    title: "The seam is a passage.",
+    summary: "Your source returned through the opposite edge without ending the run. The square is periodic; the border is only a drawing.",
+  },
+  reverse: {
+    title: "The image changed its mind.",
+    summary: "Crossing a fold reversed your contribution and the response of the mapped image. The fold was a sign change, never a wall.",
+  },
+  echo: {
+    title: "One light held three histories.",
+    summary: "Three distinct source points landed on one visible state point. Their +, −, + layers left a stable signed result of +1.",
+  },
+  cancel: {
+    title: "Five layers became one.",
+    summary: "Raw coverage reached five, but paired opposite layers erased one another. Signed coverage—not apparent sweep—carried the mission.",
+  },
+  free: {
+    title: "Global charge locked at +2.",
+    summary: "Your route crossed stretched, compressed, positive, and reversed regions. The local motion was messy; the closed global answer stayed integer.",
+  },
+};
+
+function drawEvidencePath(canvas, points, orientationTrail, statePath = false) {
+  const context = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#050d14";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "rgba(121,177,174,.08)";
+  context.lineWidth = 1;
+  for (let index = 1; index < 8; index += 1) {
+    context.beginPath();
+    context.moveTo((index / 8) * width, 0);
+    context.lineTo((index / 8) * width, height);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(0, (index / 8) * height);
+    context.lineTo(width, (index / 8) * height);
+    context.stroke();
+  }
+  const pad = 12;
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (
+      Math.abs(current.u - previous.u) > 0.5
+      || Math.abs(current.v - previous.v) > 0.5
+    ) continue;
+    context.beginPath();
+    context.moveTo(pad + previous.u * (width - pad * 2), pad + previous.v * (height - pad * 2));
+    context.lineTo(pad + current.u * (width - pad * 2), pad + current.v * (height - pad * 2));
+    context.strokeStyle = orientationTrail[index] > 0
+      ? "rgba(101,255,226,.72)"
+      : "rgba(255,111,145,.78)";
+    context.lineWidth = statePath ? 1.8 : 1.4;
+    context.stroke();
+  }
+}
+
+function showEvidence() {
+  if (game.status !== "complete" && game.status !== "failed") return;
+  const evidence = missionEvidence(game);
+  const complete = game.status === "complete";
+  const copy = complete
+    ? completionCopy[game.mission.id]
+    : {
+      title: "The field lost coherence.",
+      summary: game.remaining === 0
+        ? "Time expired, but the receipt remains. Compare the raw and signed paths, then route through the compressed region more directly."
+        : "The collected layers did not assemble the target integer. The receipt shows where the signs diverged.",
+    };
+
+  ui.evidenceStatus.textContent = complete ? "MISSION LOCKED" : "RUN INCOMPLETE";
+  ui.evidenceStatus.style.color = complete ? "#65ffe2" : "#ff6f91";
+  ui.evidenceEyebrow.textContent = `RUN ${game.mission.number} // EVIDENCE`;
+  ui.evidenceTitle.textContent = copy.title;
+  ui.evidenceSummary.textContent = copy.summary;
+  ui.evidenceSign.textContent = game.orientation > 0 ? "+" : "−";
+  ui.evidenceMultiplicity.textContent = `${evidence.multiplicity}×`;
+  ui.evidenceRaw.textContent = evidence.rawArea.toFixed(0);
+  ui.evidenceSigned.textContent = formatSigned(evidence.signedArea);
+  ui.evidenceCharge.textContent = formatSigned(evidence.charge);
+  ui.evidenceTime.textContent = `${evidence.elapsed.toFixed(1)}s`;
+  ui.nextLabel.textContent = !complete
+    ? "TRY AGAIN"
+    : game.missionIndex === missions.length - 1
+      ? "FLY AGAIN"
+      : "NEXT MISSION";
+
+  const orientations = game.sourceTrail.map((point) => point.orientation);
+  drawEvidencePath(evidenceDomain, evidence.sourcePath, orientations, false);
+  drawEvidencePath(evidenceState, evidence.mappedPath, orientations, true);
+  ui.evidenceOverlay.hidden = false;
+  ui.nextButton.focus();
+}
+
+function setMission(index) {
+  if (overlayTimer) window.clearTimeout(overlayTimer);
+  game = createMissionState(index, missions);
+  accumulated = 0;
+  lastStatus = game.status;
+  ui.evidenceOverlay.hidden = true;
+  updateTelemetry();
+}
+
+function startExperience() {
+  if (startedExperience) return;
+  startedExperience = true;
+  ui.startScreen.classList.add("dismissed");
+  sound.ensure();
+  sound.chord([261.63, 392, 523.25], 0.075);
+  domainCanvas.focus?.();
+}
+
+function advanceMission() {
+  if (game.status === "failed") {
+    setMission(game.missionIndex);
+    return;
+  }
+  const next = game.missionIndex === missions.length - 1
+    ? 0
+    : game.missionIndex + 1;
+  setMission(next);
+}
+
+function restartMission() {
+  setMission(game.missionIndex);
+}
+
+function togglePause() {
+  if (!startedExperience || !ui.evidenceOverlay.hidden) return;
+  paused = !paused;
+  ui.pauseScreen.hidden = !paused;
+  if (!paused) previousTime = performance.now();
+}
+
+function rotateCamera() {
+  camera.targetYaw += Math.PI / 3;
+  sound.tone(410, 0.08, { slide: 510, volume: 0.045 });
+}
+
+function directionPressed(...names) {
+  return names.some((name) => keys.has(name) || touchDirections.has(name));
+}
+
+function currentInput() {
+  const x = Number(directionPressed("d", "arrowright", "right"))
+    - Number(directionPressed("a", "arrowleft", "left"));
+  const y = Number(directionPressed("s", "arrowdown", "down"))
+    - Number(directionPressed("w", "arrowup", "up"));
+  const pulse = pulseQueued;
+  pulseQueued = false;
+  return { x, y, pulse };
+}
+
+function handleGameEvents(events) {
+  for (const event of events) sound.event(event);
+}
+
+function simulate(dt) {
+  const input = currentInput();
+  stepMission(game, input, dt);
+  handleGameEvents(game.events);
+  if (game.status !== lastStatus) {
+    lastStatus = game.status;
+    if (game.status === "complete" || game.status === "failed") {
+      overlayTimer = window.setTimeout(showEvidence, 620);
+    }
+  }
+}
+
+function frame(time) {
+  const delta = Math.min(0.05, (time - previousTime) / 1000);
+  previousTime = time;
+  if (!paused && startedExperience && ui.evidenceOverlay.hidden) {
+    accumulated += delta;
+    while (accumulated >= FIXED_STEP) {
+      simulate(FIXED_STEP);
+      accumulated -= FIXED_STEP;
+    }
+  }
+
+  camera.yaw += (camera.targetYaw - camera.yaw) * 0.09;
+  camera.pitch += (camera.targetPitch - camera.pitch) * 0.09;
+  drawDomain(time);
+  drawSurface(time);
+  updateTelemetry();
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener("keydown", (event) => {
+  const key = event.key.toLowerCase();
+  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+    event.preventDefault();
+  }
+  if (key === "enter") {
+    if (!startedExperience) startExperience();
+    else if (!ui.evidenceOverlay.hidden) advanceMission();
+    return;
+  }
+  if (key === "r") {
+    restartMission();
+    return;
+  }
+  if (key === "p") {
+    togglePause();
+    return;
+  }
+  if (key === "m") {
+    const enabled = sound.toggle();
+    ui.soundButton.setAttribute("aria-pressed", String(enabled));
+    ui.soundIcon.textContent = enabled ? "◖))" : "◖×";
+    return;
+  }
+  if (key === "c") {
+    rotateCamera();
+    return;
+  }
+  if (key === " ") {
+    pulseQueued = true;
+    sound.ensure();
+    return;
+  }
+  keys.add(key);
+  if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+    startExperience();
+    sound.ensure();
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  keys.delete(event.key.toLowerCase());
+});
+
+window.addEventListener("blur", () => {
+  keys.clear();
+  touchDirections.clear();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && startedExperience && !paused && ui.evidenceOverlay.hidden) {
+    togglePause();
+  }
+});
+
+for (const button of document.querySelectorAll("[data-direction]")) {
+  const direction = button.dataset.direction;
+  const release = (event) => {
+    event.preventDefault();
+    touchDirections.delete(direction);
+  };
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    startExperience();
+    sound.ensure();
+    touchDirections.add(direction);
+    button.setPointerCapture?.(event.pointerId);
+  });
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  button.addEventListener("pointerleave", release);
+}
+
+surfaceCanvas.addEventListener("pointerdown", (event) => {
+  camera.dragging = true;
+  camera.pointerX = event.clientX;
+  camera.pointerY = event.clientY;
+  surfaceCanvas.setPointerCapture?.(event.pointerId);
+});
+
+surfaceCanvas.addEventListener("pointermove", (event) => {
+  if (!camera.dragging) return;
+  const dx = event.clientX - camera.pointerX;
+  const dy = event.clientY - camera.pointerY;
+  camera.targetYaw += dx * 0.008;
+  camera.targetPitch = Math.max(0.25, Math.min(1.22, camera.targetPitch + dy * 0.005));
+  camera.pointerX = event.clientX;
+  camera.pointerY = event.clientY;
+});
+
+surfaceCanvas.addEventListener("pointerup", () => {
+  camera.dragging = false;
+});
+surfaceCanvas.addEventListener("pointercancel", () => {
+  camera.dragging = false;
+});
+
+ui.startButton.addEventListener("click", startExperience);
+ui.retryButton.addEventListener("click", restartMission);
+ui.nextButton.addEventListener("click", advanceMission);
+ui.cameraButton.addEventListener("click", rotateCamera);
+ui.soundButton.addEventListener("click", () => {
+  const enabled = sound.toggle();
+  ui.soundButton.setAttribute("aria-pressed", String(enabled));
+  ui.soundIcon.textContent = enabled ? "◖))" : "◖×";
+});
+ui.pulseButton.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  startExperience();
+  pulseQueued = true;
+  sound.ensure();
+});
+
+updateTelemetry();
+requestAnimationFrame(frame);
