@@ -36,7 +36,7 @@
         </div>
 
         <div class="top-actions">
-          <a class="icon-button" id="philosophy-link" href="./philosophy.html" title="Read the mapping-degree game specification">
+          <a class="icon-button" id="philosophy-link" href="./philosophy.html" title="Read the paper-to-game implementation specification">
             <span aria-hidden="true">∴</span>
             <span class="button-label">SPEC</span>
           </a>
@@ -79,7 +79,7 @@
           <span>LAYER MULTIPLICITY</span>
         </div>
         <div class="telemetry-item">
-          <small>LOCAL STRETCH</small>
+          <small>AREA DENSITY |λ̄|</small>
           <strong id="stretch-value">1.00</strong>
           <span id="stretch-word">STEADY</span>
         </div>
@@ -111,22 +111,22 @@
             <span class="edge-label edge-left">WRAPS EAST</span>
             <span class="edge-label edge-right">WRAPS WEST</span>
             <div class="field-effect-card" id="field-effect-card" data-kind="positive" aria-live="polite">
-              <small id="field-effect-name">POSITIVE REGION · J &gt; 0</small>
-              <b id="field-effect-action">LOCAL v: SOURCE ↑ → IMAGE ↑</b>
+              <small id="field-effect-name">POSITIVE SHEET · λ̄ &gt; 0</small>
+              <b id="field-effect-action">ORIENTED BLOCH AREA ADDS</b>
               <span id="field-effect-result">GATE PACKET HERE: +1</span>
             </div>
             <div class="cusp-alert" id="cusp-alert" hidden>
               <span>◆</span>
               <div>
-                <b>CUSP POINT · J≈0</b>
-                <small>FOLD ENDPOINT · NO DAMAGE · NO PICKUP</small>
+                <b>WHITNEY CUSP · det g=0</b>
+                <small>KERNEL TANGENT TO Σ · SINGULAR-CURVATURE WARNING</small>
               </div>
             </div>
           </div>
           <div class="panel-footer">
             <span><i class="legend-source"></i> SOURCE</span>
-            <span><i class="legend-fold"></i> FOLD · J=0</span>
-            <span><i class="legend-cusp"></i> CUSP · ENDPOINT</span>
+            <span><i class="legend-fold"></i> Σ · det g=0</span>
+            <span><i class="legend-cusp"></i> CUSP · WHITNEY</span>
             <b id="source-coordinates">u .860 // v .200</b>
           </div>
         </article>
@@ -134,7 +134,7 @@
         <div class="map-bridge" aria-hidden="true">
           <span class="bridge-line"></span>
           <div>
-            <small>FOLD MAP</small>
+            <small>BLOCH MAP</small>
             <b>ƒ</b>
           </div>
           <span class="bridge-line"></span>
@@ -144,15 +144,15 @@
           <div class="panel-heading">
             <span>
               <i class="panel-dot coral"></i>
-              STATE SURFACE
+              BLOCH SPHERE
             </span>
             <small>DRAG OR PRESS C TO ROTATE VIEW</small>
           </div>
           <div class="canvas-shell" id="surface-shell">
-            <canvas id="surface-canvas" aria-label="Folded state torus"></canvas>
+            <canvas id="surface-canvas" aria-label="Lower-band Bloch sphere"></canvas>
             <div class="surface-readout">
               <span>MAPPED IMAGE</span>
-              <b id="state-coordinates">θ .860 // φ .200</b>
+              <b id="state-coordinates">n (0.00, 0.00, 1.00)</b>
             </div>
           </div>
           <div class="panel-footer">

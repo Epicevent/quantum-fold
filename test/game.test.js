@@ -6,18 +6,20 @@ import test from "node:test";
 import {
   CoverageLedger,
   FIXED_STEP,
+  bzCoordinates,
   clamp,
   createMissionState,
   cuspPoints,
   fieldEffectAt,
   findSourcesForState,
-  foldAmplitude,
   foldBranchesAtU,
   isChargeComplete,
   makeMissions,
   mapToState,
+  metricDeterminant,
   orientationAt,
   orientationValue,
+  sourceFromBZ,
   sourceMultiplicity,
   signedPeriodicDelta,
   stepMission,
@@ -37,21 +39,30 @@ test("periodic wraparound returns through the opposite edge without losing veloc
 });
 
 test("orientation reverses between the two branches of a fold", () => {
-  const [upperEntry, lowerExit] = foldBranchesAtU(0);
-  assert.equal(orientationAt(0, upperEntry - 0.01), 1);
-  assert.equal(orientationAt(0, 0.5), -1);
-  assert.equal(orientationAt(0, lowerExit + 0.01), 1);
+  const u = 0.6;
+  const [upperEntry, lowerExit] = foldBranchesAtU(u);
+  assert.equal(orientationAt(u, upperEntry - 0.01), 1);
+  assert.equal(orientationAt(u, 0.6), -1);
+  assert.equal(orientationAt(u, lowerExit + 0.01), 1);
 });
 
 test("the same visible state point has one source or three distinct sources", () => {
-  const triple = findSourcesForState(0, 0.5);
-  const single = findSourcesForState(1 / 6, 0.5);
+  const northPole = mapToState({ u: 0.1, v: 0.1 });
+  const southPole = mapToState({ u: 0.6, v: 0.1 });
+  const triple = findSourcesForState(southPole);
+  const single = findSourcesForState(northPole);
   assert.equal(triple.length, 3);
   assert.equal(single.length, 1);
-  for (const sourceV of triple) {
-    assert.ok(Math.abs(mapToState({ u: 0, v: sourceV }).v - 0.5) < 1e-7);
+  for (const source of triple) {
+    const mapped = mapToState(source);
+    assert.ok(Math.hypot(
+      mapped.x - southPole.x,
+      mapped.y - southPole.y,
+      mapped.z - southPole.z,
+    ) < 1e-7);
   }
-  assert.equal(sourceMultiplicity({ u: 0, v: triple[1] }), 3);
+  assert.deepEqual(triple.map((source) => orientationAt(source.u, source.v)), [1, 1, -1]);
+  assert.equal(sourceMultiplicity(triple[1]), 3);
 });
 
 test("oppositely oriented layers increase raw coverage while signed coverage cancels", () => {
@@ -166,41 +177,58 @@ test("every staged mission is deterministically completable at its authored inte
   }
 });
 
-test("the analytic Jacobian agrees with an independent finite-difference derivative", () => {
+test("the analytic signed area density agrees with an independent Bloch-sphere derivative", () => {
   const delta = 1e-6;
-  for (const u of [0, 0.115, 1 / 6, 0.448, 2 / 3]) {
-    for (const v of [0.12, 0.31, 0.5, 0.67, 0.88]) {
-      const numerical = (
-        mapToState({ u, v: v + delta }).v
-        - mapToState({ u, v: v - delta }).v
-      ) / (2 * delta);
-      assert.ok(Math.abs(numerical - orientationValue(u, v)) < 1e-8);
-    }
+  const cross = (a, b) => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const dot = (a, b) => a.reduce((sum, value, index) => sum + value * b[index], 0);
+  const vector = (point) => [point.x, point.y, point.z];
+
+  for (const [kx, ky] of [[0, 0], [Math.PI, 0], [1.1, -0.7], [-2.2, 0.9]]) {
+    const source = sourceFromBZ(kx, ky);
+    const state = vector(mapToState(source));
+    const plusX = vector(mapToState(sourceFromBZ(kx + delta, ky)));
+    const minusX = vector(mapToState(sourceFromBZ(kx - delta, ky)));
+    const plusY = vector(mapToState(sourceFromBZ(kx, ky + delta)));
+    const minusY = vector(mapToState(sourceFromBZ(kx, ky - delta)));
+    const derivativeX = plusX.map((value, index) => (value - minusX[index]) / (2 * delta));
+    const derivativeY = plusY.map((value, index) => (value - minusY[index]) / (2 * delta));
+    const numerical = 0.5 * dot(state, cross(derivativeX, derivativeY));
+    assert.ok(Math.abs(numerical - orientationValue(source.u, source.v)) < 1e-8);
+    assert.ok(Math.abs(metricDeterminant(source.u, source.v) - numerical ** 2) < 1e-8);
   }
 });
 
-test("signed preimage count and normalized pullback integral independently give degree one", () => {
-  for (const u of [0, 0.04, 1 / 6, 0.31, 2 / 3, 0.92]) {
-    const roots = findSourcesForState(u, 0.5);
+test("signed preimage count and the Berry-curvature integral independently give Chern one", () => {
+  const targets = [
+    mapToState({ u: 0.1, v: 0.1 }),
+    mapToState({ u: 0.6, v: 0.1 }),
+    mapToState({ u: 0.31, v: 0.72 }),
+  ];
+  for (const target of targets) {
+    const roots = findSourcesForState(target);
     const signedCount = roots.reduce(
-      (sum, v) => sum + Math.sign(orientationValue(u, v)),
+      (sum, source) => sum + Math.sign(orientationValue(source.u, source.v)),
       0,
     );
     assert.equal(signedCount, 1);
   }
 
-  const grid = 256;
-  let pullbackIntegral = 0;
+  const grid = 512;
+  let berryIntegral = 0;
   for (let uIndex = 0; uIndex < grid; uIndex += 1) {
     for (let vIndex = 0; vIndex < grid; vIndex += 1) {
-      pullbackIntegral += orientationValue(
+      berryIntegral += orientationValue(
         (uIndex + 0.5) / grid,
         (vIndex + 0.5) / grid,
       );
     }
   }
-  pullbackIntegral /= grid * grid;
-  assert.ok(Math.abs(pullbackIntegral - 1) < 1e-12);
+  berryIntegral *= (2 * Math.PI) ** 2 / (grid * grid);
+  assert.ok(Math.abs(berryIntegral / (2 * Math.PI) - 1) < 1e-10);
 });
 
 test("the continuous area integral and mission packet proxy preserve cancellation but not units", () => {
@@ -217,11 +245,12 @@ test("the continuous area integral and mission packet proxy preserve cancellatio
       continuousSigned += jacobian;
     }
   }
-  continuousRaw /= grid * grid;
-  continuousSigned /= grid * grid;
+  const bzCellArea = (2 * Math.PI) ** 2 / (grid * grid);
+  continuousRaw *= bzCellArea;
+  continuousSigned *= bzCellArea;
 
-  assert.ok(Math.abs(continuousRaw - 1.06560574) < 5e-7);
-  assert.ok(Math.abs(continuousSigned - 1) < 1e-12);
+  assert.ok(Math.abs(continuousRaw - 7.4703885) < 5e-6);
+  assert.ok(Math.abs(continuousSigned - 2 * Math.PI) < 1e-10);
 
   const cancellationMission = makeMissions().find((mission) => mission.id === "cancel");
   const packetSigns = cancellationMission.gates.map((gate) => (
@@ -233,50 +262,57 @@ test("the continuous area integral and mission packet proxy preserve cancellatio
   assert.deepEqual(packetSigns, [1, -1, 1, -1, 1]);
   assert.equal(packetRaw, 5);
   assert.equal(packetSigned, 1);
-  assert.ok(Math.abs(packetRaw - continuousRaw) > 3);
+  assert.ok(Math.abs(packetRaw - continuousRaw / (2 * Math.PI)) > 3);
 });
 
-test("documented cusp points satisfy the cusp rather than ordinary-fold conditions", () => {
-  const firstCusp = cuspPoints()[0];
-  const amplitude = foldAmplitude(firstCusp.u);
-  const firstV = orientationValue(firstCusp.u, firstCusp.v);
-  const secondV = -2 * Math.PI * amplitude * Math.sin(2 * Math.PI * firstCusp.v);
-  const thirdV = -((2 * Math.PI) ** 2) * amplitude * Math.cos(2 * Math.PI * firstCusp.v);
-  const amplitudeU = -0.32 * 6 * Math.PI * Math.sin(6 * Math.PI * firstCusp.u);
-  assert.ok(Math.abs(amplitude - 1) < 1e-12);
-  assert.ok(Math.abs(firstV) < 1e-12);
-  assert.ok(Math.abs(secondV) < 1e-12);
-  assert.ok(Math.abs(thirdV) > 1);
-  assert.ok(Math.abs(amplitudeU) > 1);
+test("the four documented points are Whitney cusps on a smooth singular curve", () => {
+  assert.equal(cuspPoints().length, 4);
+  const delta = 1e-5;
+  for (const cusp of cuspPoints()) {
+    const { kx, ky } = bzCoordinates(cusp);
+    assert.ok(Math.abs(Math.abs(kx) - Math.PI / 2) < 1e-12);
+    assert.ok(Math.abs(Math.abs(ky) - Math.PI / 2) < 1e-12);
+    assert.ok(Math.abs(orientationValue(cusp.u, cusp.v)) < 1e-12);
+    assert.ok(metricDeterminant(cusp.u, cusp.v) < 1e-24);
+
+    const tangentSign = Math.sign(Math.sin(kx) * Math.sin(ky));
+    const before = mapToState(sourceFromBZ(kx - delta, ky + tangentSign * delta));
+    const after = mapToState(sourceFromBZ(kx + delta, ky - tangentSign * delta));
+    assert.ok(Math.hypot(
+      after.x - before.x,
+      after.y - before.y,
+      after.z - before.z,
+    ) < 1e-8, "the fold tangent should lie in the map kernel at a cusp");
+  }
 });
 
 test("field feedback distinguishes positive, fold, reversed, and cusp effects", () => {
   const ordinaryFold = {
-    u: 0,
-    v: foldBranchesAtU(0)[0],
+    u: 0.6,
+    v: foldBranchesAtU(0.6)[0],
   };
   const cusp = cuspPoints()[0];
 
-  const positive = fieldEffectAt({ u: 0, v: 0.1 });
+  const positive = fieldEffectAt({ u: 0.1, v: 0.1 });
   const fold = fieldEffectAt(ordinaryFold);
-  const reversed = fieldEffectAt({ u: 0, v: 0.5 });
+  const reversed = fieldEffectAt({ u: 0.6, v: 0.6 });
   const cuspEffect = fieldEffectAt(cusp);
 
   assert.equal(positive.kind, "positive");
-  assert.equal(positive.localVResponse, "preserved");
+  assert.equal(positive.localResponse, "orientation-preserved");
   assert.equal(positive.packetSign, 1);
 
   assert.equal(fold.kind, "fold");
-  assert.ok(Math.abs(fold.jacobian) < 1e-12);
-  assert.equal(fold.localVResponse, "compressed");
+  assert.ok(Math.abs(fold.signedDensity) < 1e-12);
+  assert.equal(fold.localResponse, "rank-loss");
   assert.equal(fold.packetSign, null);
 
   assert.equal(reversed.kind, "reversed");
-  assert.equal(reversed.localVResponse, "reversed");
+  assert.equal(reversed.localResponse, "orientation-reversed");
   assert.equal(reversed.packetSign, -1);
 
   assert.equal(cuspEffect.kind, "cusp");
-  assert.ok(Math.abs(cuspEffect.jacobian) < 1e-12);
+  assert.ok(Math.abs(cuspEffect.signedDensity) < 1e-12);
   assert.equal(cuspEffect.causesDamage, false);
   assert.equal(cuspEffect.isCollectible, false);
 });
@@ -295,13 +331,20 @@ test("every philosophy claim anchor resolves to one exact source substring", () 
     );
   }
 
-  const workedRoots = findSourcesForState(0, 0.5);
-  for (const root of workedRoots) {
-    assert.ok(html.includes(root.toFixed(6)), `worked example should show v=${root.toFixed(6)}`);
-    assert.ok(
-      html.includes(Math.abs(orientationValue(0, root)).toFixed(6)),
-      `worked example should show |J|=${Math.abs(orientationValue(0, root)).toFixed(6)}`,
-    );
+  const southPole = mapToState({ u: 0.6, v: 0.1 });
+  const workedRoots = findSourcesForState(southPole);
+  assert.equal(workedRoots.length, 3);
+  assert.deepEqual(
+    workedRoots.map((source) => orientationAt(source.u, source.v)),
+    [1, 1, -1],
+  );
+  for (const requiredReceipt of [
+    "f⁻¹(n<sub>south</sub>)",
+    "{(π,0),(0,π),(π,π)}",
+    "+½",
+    "−1/18",
+  ]) {
+    assert.ok(html.includes(requiredReceipt), `worked example should show: ${requiredReceipt}`);
   }
 });
 
@@ -315,25 +358,30 @@ test("the philosophy page maps every hand-calculation object to an explicit game
   )].map(([, object, status]) => [object, status]);
 
   assert.deepEqual(rows, [
-    ["source-point", "exact"],
-    ["mapped-point", "exact"],
-    ["target-form", "conceptual"],
-    ["source-area", "conceptual"],
-    ["jacobian", "exact"],
-    ["integration-domain", "not-computed"],
-    ["raw-integral", "proxy"],
-    ["signed-integral", "proxy"],
-    ["normalization", "proxy"],
-    ["player-path", "control-only"],
+    ["bz-point", "exact"],
+    ["bloch-map", "exact"],
+    ["signed-density", "exact"],
+    ["metric-determinant", "exact"],
+    ["regularized-inverse", "not-implemented"],
+    ["singular-curve", "exact"],
+    ["cusps", "exact"],
+    ["multiplicity", "exact"],
+    ["front", "conceptual"],
+    ["singular-curvature", "not-computed"],
+    ["chern-integral", "verified-not-played"],
+    ["packet-score", "proxy"],
+    ["projector-polynomial", "not-implemented"],
   ]);
 
   for (const requiredCalculation of [
-    "F*ω = F*(du′∧dv′) = d(u′∘F) ∧ d(v′∘F)",
-    "du∧du = 0",
-    "F*ω = [1+A(u)cos(2πv)]du∧dv = J(u,v)du∧dv",
-    "γ*(F*ω)=0",
-    "RAW 5",
-    "1.065606",
+    "dĀ=λ̄(k) dk<sub>x</sub>∧dk<sub>y</sub>",
+    "det g=λ̄²",
+    "(1/4π)∫K<sub>G</sub>dĀ=(1/2π)∫<sub>BZ</sub>λ̄ dk<sub>x</sub>dk<sub>y</sub>=C=1",
+    "(1/2π)∫|λ̄|dk<sub>x</sub>dk<sub>y</sub>≈1.1889",
+    "Q<sub>game</sub>=Σ ε<sub>j</sub>a<sub>j</sub>",
+    "K<sub>α</sub>(H)",
+    "g<sub>reg</sub><sup>−1</sup>=(g+λ<sub>reg</sub>I)<sup>−1</sup>",
+    "(g+λ<sub>reg</sub>I)<sup>−1</sup>g=Q diag(sᵢ/(sᵢ+λ<sub>reg</sub>))Q<sup>T</sup>",
   ]) {
     assert.ok(
       html.includes(requiredCalculation),
@@ -349,11 +397,19 @@ test("the specification uses a neutral voice and exposes the amber geometry cont
   const renderer = readFileSync(resolve(root, "src", "main.js"), "utf8");
 
   for (const requiredText of [
-    "<title>Quantum Fold — Mapping Degree Game Specification</title>",
-    "게임 화면의 색과 형상이 뜻하는 것",
-    "Degree 적분과 화면 요소의 대응",
-    "연속 map mechanic과 authored packet charge",
-    "별도 damage·pickup·score 효과는 없다.",
+    "<title>Quantum Fold — Paper-to-Game Implementation Specification</title>",
+    "어느 역행렬이, 어디서, 왜 사라지는가",
+    "f:T²<sub>BZ</sub>→S²<sub>Bloch</sub>",
+    "Σ={k:det g(k)=0}",
+    "g<sub>reg</sub><sup>−1</sup>=(g+λ<sub>reg</sub>I)<sup>−1</sup>",
+    "Fold의 kernel 고유값 <code>s₂=0</code>은 여전히 0이므로 잃어버린 방향을 복원하지 못한다.",
+    "<code>λ<sub>reg</sub></code>와 <code>λ̄</code>는 서로 다른 양이다.",
+    "dĀ=λ̄ dk<sub>x</sub>∧dk<sub>y</sub>",
+    "손으로 적분한 양과 게임 meter의 대응",
+    "“요상한 다항식”은 fold의 역행렬을 구하지 않는다",
+    "실제 구현과 proxy를 분리한 대응표",
+    "metric rank loss, four Whitney cusps, 1↔3 preimages, signed Berry area, Chern integer +1",
+    "벽이나 damage zone이 아니다.",
   ]) {
     assert.ok(philosophy.includes(requiredText), `specification should include: ${requiredText}`);
   }
@@ -370,6 +426,10 @@ test("the specification uses a neutral voice and exposes the amber geometry cont
     "논문 독자",
     "이 해석을 반증",
     "PLAY THE ARGUMENT",
+    "Mapping Degree Game Specification",
+    "T²→T²",
+    "CUSP NORMAL FORM ≠ INVERSE-REPLACEMENT ALGORITHM",
+    "singular Jacobian의 역행렬을 복구",
   ]) {
     assert.equal(
       philosophy.includes(forbiddenText),
@@ -379,12 +439,17 @@ test("the specification uses a neutral voice and exposes the amber geometry cont
   }
 
   for (const gameContractText of [
-    "CUSP POINT · J≈0",
-    "FOLD ENDPOINT · NO DAMAGE · NO PICKUP",
-    "FOLD · J=0",
+    "WHITNEY CUSP · det g=0",
+    "KERNEL TANGENT TO Σ · SINGULAR-CURVATURE WARNING",
+    "Σ · det g=0",
+    "AREA DENSITY |λ̄|",
+    "BLOCH SPHERE",
   ]) {
     assert.ok(gameHtml.includes(gameContractText), `game HUD should include: ${gameContractText}`);
   }
-  assert.ok(renderer.includes("LOCAL v: SOURCE ↑ → IMAGE ↓"));
-  assert.ok(renderer.includes("NO DAMAGE · NO PICKUP · GEOMETRY MARKER"));
+  assert.ok(renderer.includes("λ̄ < 0 · ORIENTED BLOCH AREA SUBTRACTS"));
+  assert.ok(renderer.includes("det g = λ̄² → 0 · g⁻¹ UNDEFINED"));
+  assert.ok(renderer.includes("KERNEL TANGENT TO Σ · FOLD IMAGE FORMS A CUSP"));
+  assert.ok(renderer.includes("SINGULAR-CURVATURE WARNING · NO DAMAGE · NO PICKUP"));
+  assert.ok(renderer.includes("function drawSphereMesh"));
 });

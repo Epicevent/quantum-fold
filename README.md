@@ -1,8 +1,8 @@
 # Quantum Fold
 
-A short arcade-cartography game about steering a point through a periodic domain while reading its folded image on a state surface. Five staged missions teach edge wrapping, orientation reversal, one-to-three provenance, signed cancellation, and a final integer-charge run through play.
+A short arcade-cartography game built from the paper's two-band map from the Brillouin torus to the Bloch sphere. Five staged missions teach periodic momentum, fold-induced orientation reversal, one-to-three preimages, signed cancellation, and the model's Chern integer `+1`.
 
-The mapping-degree game specification, including the exact screen-symbol and implementation correspondence, is documented in [`philosophy.html`](./philosophy.html).
+The paper-to-game specification in [`philosophy.html`](./philosophy.html) states exactly what is integrated, why the quantum metric inverse fails on the fold, what Appendix A's projector polynomial actually does, and which runtime elements are exact, conceptual, or gameplay proxies.
 
 ## Play locally
 
@@ -22,6 +22,6 @@ Controls: **WASD / arrows** steer, **Space** pulses the provenance scanner, **C*
 npm test
 ```
 
-The deterministic tests exercise periodic wraparound, fold-sign reversal, one-versus-three sources, signed cancellation, integer completion, fixed-step replay, and camera invariance. Simulation rules live in `src/game.js`; rendering and input in `src/main.js` only consume that state.
+The deterministic tests independently check the analytic Berry-area density, `det g = λ̄²`, the four Whitney cusps, one-versus-three preimages, the full-Brillouin-zone Chern integral, signed cancellation, mission completion, fixed-step replay, and camera invariance. Simulation rules live in `src/game.js`; rendering and input in `src/main.js` only consume that state.
 
 GitHub Pages deploys the static game from `main` after the same test suite passes.

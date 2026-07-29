@@ -1,6 +1,7 @@
 export const TAU = Math.PI * 2;
 export const FIXED_STEP = 1 / 120;
 export const PLAYER_RADIUS = 0.018;
+export const BZ_OFFSET = 0.1;
 
 const EPSILON = 1e-9;
 const DEFAULT_SPEED = 0.245;
@@ -29,110 +30,156 @@ export function periodicDistance(a, b) {
   );
 }
 
-export function foldAmplitude(u) {
-  return 1.18 + 0.32 * Math.cos(TAU * 3 * wrap01(u));
+export function bzCoordinates(source) {
+  return {
+    kx: TAU * signedPeriodicDelta(BZ_OFFSET, source.u),
+    ky: TAU * signedPeriodicDelta(BZ_OFFSET, source.v),
+  };
 }
 
-export function foldPhase(u, v) {
-  const sourceV = clamp(v, 0, 1);
-  const mapped = sourceV
-    + (foldAmplitude(u) * Math.sin(TAU * sourceV)) / TAU;
-  return clamp(mapped, 0, 1);
+export function sourceFromBZ(kx, ky) {
+  return {
+    u: wrap01(kx / TAU + BZ_OFFSET),
+    v: wrap01(ky / TAU + BZ_OFFSET),
+  };
 }
 
-export function orientationValue(u, v) {
-  return 1 + foldAmplitude(u) * Math.cos(TAU * wrap01(v));
-}
-
-export function orientationAt(u, v) {
-  return orientationValue(u, v) < 0 ? -1 : 1;
+export function blochHamiltonianVector(source) {
+  const { kx, ky } = bzCoordinates(source);
+  return {
+    x: Math.sin(kx),
+    y: Math.sin(ky),
+    z: 1 - Math.cos(kx) - Math.cos(ky),
+  };
 }
 
 export function mapToState(source) {
+  const d = blochHamiltonianVector(source);
+  const length = Math.hypot(d.x, d.y, d.z);
+  const x = -d.x / length;
+  const y = -d.y / length;
+  const z = -d.z / length;
   return {
-    u: wrap01(source.u),
-    v: foldPhase(source.u, wrap01(source.v)),
+    x,
+    y,
+    z,
+    u: wrap01(Math.atan2(y, x) / TAU),
+    v: Math.acos(clamp(z, -1, 1)) / Math.PI,
   };
+}
+
+export function signedAreaDensity(u, v) {
+  const source = { u, v };
+  const { kx, ky } = bzCoordinates(source);
+  const cx = Math.cos(kx);
+  const cy = Math.cos(ky);
+  const d = blochHamiltonianVector(source);
+  const length = Math.hypot(d.x, d.y, d.z);
+  return (cx + cy - cx * cy) / (2 * length ** 3);
+}
+
+export function metricDeterminant(u, v) {
+  return signedAreaDensity(u, v) ** 2;
+}
+
+export function orientationValue(u, v) {
+  return signedAreaDensity(u, v);
+}
+
+export function orientationAt(u, v) {
+  return signedAreaDensity(u, v) < 0 ? -1 : 1;
 }
 
 export function foldBranchesAtU(u) {
-  const amplitude = foldAmplitude(u);
-  if (amplitude < 1) return [];
-  const first = Math.acos(-1 / amplitude) / TAU;
-  return [first, 1 - first];
+  const { kx } = bzCoordinates({ u, v: BZ_OFFSET });
+  const cx = Math.cos(kx);
+  if (cx > 0.5 + EPSILON || Math.abs(cx - 1) < EPSILON) return [];
+  const cy = clamp(cx / (cx - 1), -1, 1);
+  const ky = Math.acos(cy);
+  const branches = [
+    sourceFromBZ(kx, -ky).v,
+    sourceFromBZ(kx, ky).v,
+  ];
+  return [...new Set(branches.map((value) => Number(value.toFixed(12))))]
+    .sort((a, b) => a - b);
 }
 
 export function cuspPoints() {
-  const ratio = (1 - 1.18) / 0.32;
-  const angle = Math.acos(ratio);
   const points = [];
-  for (let lobe = 0; lobe < 3; lobe += 1) {
-    points.push({
-      u: wrap01((angle + TAU * lobe) / (TAU * 3)),
-      v: 0.5,
-    });
-    points.push({
-      u: wrap01((TAU - angle + TAU * lobe) / (TAU * 3)),
-      v: 0.5,
-    });
-  }
-  return points.sort((a, b) => a.u - b.u);
-}
-
-function bisectRoot(u, targetV, left, right, iterations = 52) {
-  let lo = left;
-  let hi = right;
-  let loValue = foldPhase(u, lo) - targetV;
-  for (let iteration = 0; iteration < iterations; iteration += 1) {
-    const mid = (lo + hi) / 2;
-    const midValue = foldPhase(u, mid) - targetV;
-    if (Math.abs(midValue) < EPSILON) return mid;
-    if (Math.sign(midValue) === Math.sign(loValue)) {
-      lo = mid;
-      loValue = midValue;
-    } else {
-      hi = mid;
+  for (const kx of [-Math.PI / 2, Math.PI / 2]) {
+    for (const ky of [-Math.PI / 2, Math.PI / 2]) {
+      points.push(sourceFromBZ(kx, ky));
     }
   }
-  return (lo + hi) / 2;
+  return points.sort((a, b) => a.u - b.u || a.v - b.v);
 }
 
-export function findSourcesForState(u, targetV, samples = 1024) {
-  const target = clamp(targetV, 0, 1);
-  const roots = [];
-  let previousV = 0;
-  let previousValue = foldPhase(u, previousV) - target;
+export function stateDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
 
-  const addRoot = (root) => {
-    if (
-      root >= -EPSILON
-      && root <= 1 + EPSILON
-      && roots.every((existing) => Math.abs(existing - root) > 1e-5)
-    ) {
-      roots.push(clamp(root, 0, 1));
+export function findSourcesForState(target, samples = 128) {
+  const q = { x: -target.x, y: -target.y, z: -target.z };
+  let maximumRadius = 3.05;
+  if (Math.abs(q.x) > EPSILON) maximumRadius = Math.min(maximumRadius, 1 / Math.abs(q.x));
+  if (Math.abs(q.y) > EPSILON) maximumRadius = Math.min(maximumRadius, 1 / Math.abs(q.y));
+  const roots = [];
+
+  const addRoot = (radius, cosXSign, cosYSign) => {
+    const sinX = clamp(radius * q.x, -1, 1);
+    const sinY = clamp(radius * q.y, -1, 1);
+    const cosX = cosXSign * Math.sqrt(Math.max(0, 1 - sinX ** 2));
+    const cosY = cosYSign * Math.sqrt(Math.max(0, 1 - sinY ** 2));
+    const source = sourceFromBZ(Math.atan2(sinX, cosX), Math.atan2(sinY, cosY));
+    if (roots.every((existing) => periodicDistance(existing, source) > 1e-5)) {
+      roots.push(source);
     }
   };
 
-  if (Math.abs(previousValue) < EPSILON) addRoot(previousV);
-
-  for (let index = 1; index <= samples; index += 1) {
-    const currentV = index / samples;
-    const currentValue = foldPhase(u, currentV) - target;
-    if (Math.abs(currentValue) < EPSILON) {
-      addRoot(currentV);
-    } else if (Math.sign(previousValue) !== Math.sign(currentValue)) {
-      addRoot(bisectRoot(u, target, previousV, currentV));
+  for (const cosXSign of [-1, 1]) {
+    for (const cosYSign of [-1, 1]) {
+      const equation = (radius) => (
+        1
+        - cosXSign * Math.sqrt(Math.max(0, 1 - radius ** 2 * q.x ** 2))
+        - cosYSign * Math.sqrt(Math.max(0, 1 - radius ** 2 * q.y ** 2))
+        - radius * q.z
+      );
+      let previousRadius = 1e-8;
+      let previousValue = equation(previousRadius);
+      for (let index = 1; index <= samples; index += 1) {
+        const radius = maximumRadius * index / samples;
+        const value = equation(radius);
+        let root = null;
+        if (Math.abs(value) < 1e-9) {
+          root = radius;
+        } else if (previousValue * value < 0) {
+          let lo = previousRadius;
+          let hi = radius;
+          let loValue = previousValue;
+          for (let iteration = 0; iteration < 52; iteration += 1) {
+            const mid = (lo + hi) / 2;
+            const midValue = equation(mid);
+            if (loValue * midValue <= 0) {
+              hi = mid;
+            } else {
+              lo = mid;
+              loValue = midValue;
+            }
+          }
+          root = (lo + hi) / 2;
+        }
+        if (root !== null && root > EPSILON) addRoot(root, cosXSign, cosYSign);
+        previousRadius = radius;
+        previousValue = value;
+      }
     }
-    previousV = currentV;
-    previousValue = currentValue;
   }
 
-  return roots.sort((a, b) => a - b);
+  return roots.sort((a, b) => a.u - b.u || a.v - b.v);
 }
 
 export function sourceMultiplicity(source) {
-  const mapped = mapToState(source);
-  return findSourcesForState(mapped.u, mapped.v).length;
+  return findSourcesForState(mapToState(source)).length;
 }
 
 export function nearestCuspDistance(source) {
@@ -143,42 +190,45 @@ export function nearestCuspDistance(source) {
 }
 
 export function fieldEffectAt(source, {
-  foldThreshold = 0.12,
-  cuspRadius = 0.055,
+  foldThreshold = 0.035,
+  cuspRadius = 0.05,
 } = {}) {
-  const jacobian = orientationValue(source.u, source.v);
+  const signedDensity = signedAreaDensity(source.u, source.v);
   const cuspDistance = nearestCuspDistance(source);
 
   if (cuspDistance < cuspRadius) {
     return {
       kind: "cusp",
-      jacobian,
-      sign: Math.sign(jacobian),
-      localVResponse: "compressed",
+      signedDensity,
+      metricDeterminant: signedDensity ** 2,
+      sign: Math.sign(signedDensity),
+      localResponse: "rank-loss",
       packetSign: null,
       causesDamage: false,
       isCollectible: false,
     };
   }
 
-  if (Math.abs(jacobian) < foldThreshold) {
+  if (Math.abs(signedDensity) < foldThreshold) {
     return {
       kind: "fold",
-      jacobian,
-      sign: Math.sign(jacobian),
-      localVResponse: "compressed",
+      signedDensity,
+      metricDeterminant: signedDensity ** 2,
+      sign: Math.sign(signedDensity),
+      localResponse: "rank-loss",
       packetSign: null,
       causesDamage: false,
       isCollectible: false,
     };
   }
 
-  if (jacobian < 0) {
+  if (signedDensity < 0) {
     return {
       kind: "reversed",
-      jacobian,
+      signedDensity,
+      metricDeterminant: signedDensity ** 2,
       sign: -1,
-      localVResponse: "reversed",
+      localResponse: "orientation-reversed",
       packetSign: -1,
       causesDamage: false,
       isCollectible: false,
@@ -187,9 +237,10 @@ export function fieldEffectAt(source, {
 
   return {
     kind: "positive",
-    jacobian,
+    signedDensity,
+    metricDeterminant: signedDensity ** 2,
     sign: 1,
-    localVResponse: "preserved",
+    localResponse: "orientation-preserved",
     packetSign: 1,
     causesDamage: false,
     isCollectible: false,
@@ -287,45 +338,47 @@ export function isChargeComplete({
 
 function gateFromSource(id, label, source, extra = {}) {
   const mapped = mapToState(source);
+  const kind = extra.kind ?? "source";
   return {
     id,
     label,
-    kind: extra.kind ?? "source",
+    kind,
     u: source.u,
     v: source.v,
     stateU: mapped.u,
     stateV: mapped.v,
+    stateX: mapped.x,
+    stateY: mapped.y,
+    stateZ: mapped.z,
     patch: extra.patch ?? id,
-    radius: extra.radius ?? 0.047,
+    radius: extra.radius ?? (kind === "source" ? 0.047 : 0.095),
     requiredOrientation: extra.requiredOrientation
       ?? orientationAt(source.u, source.v),
-    rootV: extra.rootV,
+    rootSource: extra.rootSource,
   };
 }
 
 function echoGates() {
-  const u = 0;
-  const stateV = 0.5;
-  return findSourcesForState(u, stateV).map((rootV, index) => gateFromSource(
+  const southPole = mapToState({ u: 0.6, v: 0.1 });
+  return findSourcesForState(southPole).map((rootSource, index) => gateFromSource(
     `echo-${index + 1}`,
     `Echo ${index + 1}`,
-    { u, v: rootV },
+    rootSource,
     {
       kind: "echo",
       patch: "one-light",
-      radius: 0.043,
-      rootV,
+      radius: 0.085,
+      rootSource,
     },
   ));
 }
 
 export function makeMissions() {
   const foldRunSources = [
-    { u: 0.05, v: 0.28 },
-    { u: 0.05, v: 0.48 },
-    { u: 0.05, v: 0.72 },
+    { u: 0.6, v: 0.15 },
+    { u: 0.6, v: 0.6 },
+    { u: 0.6, v: 0.05 },
   ];
-  const cancellationSources = findSourcesForState(0, 0.5);
 
   return [
     {
@@ -352,10 +405,10 @@ export function makeMissions() {
       number: "02",
       eyebrow: "FOLD CURRENT",
       title: "Read the sign",
-      brief: "Steer the image through amber locks. Between the fold lines, your mapped motion reverses.",
+      brief: "Steer the Bloch image through amber locks. Across Σ, the signed area density reverses.",
       objective: "Cross + → − → + and lock all 3 state rings",
-      hint: "Watch the right-hand image: the source keeps obeying you while its image can turn against you.",
-      start: { u: 0.05, v: 0.18 },
+      hint: "Watch λ̄: det g reaches zero on the amber curve, then the oriented image flips.",
+      start: { u: 0.6, v: 0.08 },
       ordered: true,
       timeLimit: null,
       targetCharge: 1,
@@ -375,10 +428,10 @@ export function makeMissions() {
       number: "03",
       eyebrow: "PROVENANCE",
       title: "One light, three origins",
-      brief: "The white state beacon has three source echoes. Touch every origin, not just the image.",
+      brief: "The south-pole Bloch state has three BZ preimages. Touch every origin, not just the image.",
       objective: "Resolve all 3 sources of the same visible point",
-      hint: "Press Space to reveal echo bearings. Their signs are +, −, +.",
-      start: { u: 0.86, v: 0.5 },
+      hint: "Press Space to reveal echo bearings. Their signs are +, +, −, so the signed sum is +1.",
+      start: { u: 0.82, v: 0.48 },
       ordered: false,
       timeLimit: null,
       targetCharge: 1,
@@ -392,38 +445,37 @@ export function makeMissions() {
       brief: "Survey five layers. Opposite signs on the same patch cancel, even while raw coverage climbs.",
       objective: "Reach raw 5 with signed charge +1",
       hint: "Follow the numbered locks. The large meter shows signed progress, not raw sweep.",
-      start: { u: 0.88, v: cancellationSources[0] },
+      start: { u: 0.82, v: 0.48 },
       ordered: true,
       timeLimit: 70,
       targetCharge: 1,
       gates: [
-        gateFromSource("cancel-1", "A+", { u: 0, v: cancellationSources[0] }, { kind: "state", patch: "patch-a" }),
-        gateFromSource("cancel-2", "A−", { u: 0, v: cancellationSources[1] }, { kind: "state", patch: "patch-a" }),
-        gateFromSource("cancel-3", "B+", { u: 1 / 3, v: cancellationSources[2] }, { kind: "state", patch: "patch-b" }),
-        gateFromSource("cancel-4", "C−", { u: 2 / 3, v: cancellationSources[1] }, { kind: "state", patch: "patch-c" }),
-        gateFromSource("cancel-5", "C+", { u: 2 / 3, v: cancellationSources[0] }, { kind: "state", patch: "patch-c" }),
+        gateFromSource("cancel-1", "A+", { u: 0.6, v: 0.1 }, { kind: "state", patch: "patch-a" }),
+        gateFromSource("cancel-2", "A−", { u: 0.6, v: 0.6 }, { kind: "state", patch: "patch-a" }),
+        gateFromSource("cancel-3", "B+", { u: 0.1, v: 0.6 }, { kind: "state", patch: "patch-b" }),
+        gateFromSource("cancel-4", "C−", { u: 0.58, v: 0.58 }, { kind: "state", patch: "patch-c" }),
+        gateFromSource("cancel-5", "C+", { u: 0.1, v: 0.1 }, { kind: "state", patch: "patch-c" }),
       ],
     },
     {
       id: "free",
       number: "05",
-      eyebrow: "FREE CHARGE",
-      title: "Assemble a global +2",
-      brief: "Choose your route through six relays, then return home. Local twists are noise; the integer is the mission.",
-      objective: "Collect all relays, close the path, finish at charge +2",
-      hint: "Any order works. Four positive layers and two negative layers make the same robust answer.",
+      eyebrow: "CHERN RECEIPT",
+      title: "Assemble the model's global +1",
+      brief: "Choose your route through five evidence relays, then return home. Local singular geometry leaves a stable integer.",
+      objective: "Collect all relays, close the path, finish at charge +1",
+      hint: "Any order works. Three positive packets and two negative packets reproduce C = +1.",
       start: { u: 0.5, v: 0.08 },
       home: { u: 0.5, v: 0.08, radius: 0.062 },
       ordered: false,
       timeLimit: 105,
-      targetCharge: 2,
+      targetCharge: 1,
       gates: [
-        gateFromSource("free-1", "North pulse", { u: 0.08, v: 0.12 }, { patch: "north" }),
-        gateFromSource("free-2", "East pulse", { u: 0.28, v: 0.82 }, { patch: "east" }),
-        gateFromSource("free-3", "South pulse", { u: 0.55, v: 0.18 }, { patch: "south" }),
-        gateFromSource("free-4", "West pulse", { u: 0.86, v: 0.86 }, { patch: "west" }),
-        gateFromSource("free-5", "Dark fold", { u: 0, v: 0.5 }, { patch: "fold-a" }),
-        gateFromSource("free-6", "Dark fold", { u: 2 / 3, v: 0.5 }, { patch: "fold-b" }),
+        gateFromSource("free-1", "North pole", { u: 0.1, v: 0.1 }, { patch: "north" }),
+        gateFromSource("free-2", "South preimage A", { u: 0.6, v: 0.1 }, { patch: "south-a" }),
+        gateFromSource("free-3", "Cusp flank", { u: 0.35, v: 0.28 }, { patch: "cusp-flank" }),
+        gateFromSource("free-4", "Reversed sheet A", { u: 0.6, v: 0.6 }, { patch: "fold-a" }),
+        gateFromSource("free-5", "Reversed sheet B", { u: 0.7, v: 0.7 }, { patch: "fold-b" }),
       ],
     },
   ];
@@ -470,6 +522,7 @@ export function createMissionState(index = 0, missions = makeMissions()) {
     wrapCount: 0,
     pathClosed: !mission.home,
     lastTrailAt: 0,
+    lastMultiplicityAt: 0,
   };
 }
 
@@ -479,14 +532,15 @@ function gateHit(state, gate) {
     return periodicDistance(source, gate) <= gate.radius;
   }
 
-  const stateDistance = periodicDistance(state.mapped, {
-    u: gate.stateU,
-    v: gate.stateV,
+  const mappedDistance = stateDistance(state.mapped, {
+    x: gate.stateX,
+    y: gate.stateY,
+    z: gate.stateZ,
   });
-  if (stateDistance > gate.radius) return false;
+  if (mappedDistance > gate.radius) return false;
   if (orientationAt(source.u, source.v) !== gate.requiredOrientation) return false;
-  if (gate.rootV !== undefined) {
-    return Math.abs(signedPeriodicDelta(source.v, gate.rootV)) <= 0.052;
+  if (gate.rootSource !== undefined) {
+    return periodicDistance(source, gate.rootSource) <= 0.052;
   }
   return true;
 }
@@ -576,7 +630,10 @@ export function stepMission(state, input, dt = FIXED_STEP) {
 
   state.mapped = mapToState(state.source);
   state.orientation = orientationAt(state.source.u, state.source.v);
-  state.multiplicity = sourceMultiplicity(state.source);
+  if (state.elapsed - state.lastMultiplicityAt >= 1 / 15) {
+    state.multiplicity = sourceMultiplicity(state.source);
+    state.lastMultiplicityAt = state.elapsed;
+  }
   state.cuspRisk = nearestCuspDistance(state.source);
   state.fieldEffect = fieldEffectAt(state.source);
 

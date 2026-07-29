@@ -5,7 +5,6 @@ import {
   createMissionState,
   cuspPoints,
   foldBranchesAtU,
-  foldPhase,
   makeMissions,
   mapToState,
   missionEvidence,
@@ -74,24 +73,24 @@ const ui = {
 
 const FIELD_EFFECT_COPY = {
   positive: {
-    name: "POSITIVE REGION",
-    action: "LOCAL v: SOURCE ↑ → IMAGE ↑",
+    name: "POSITIVE SHEET",
+    action: "λ̄ > 0 · ORIENTED BLOCH AREA ADDS",
     result: "GATE PACKET COLLECTED HERE: +1",
   },
   fold: {
-    name: "FOLD LINE",
-    action: "LOCAL v RESPONSE → 0",
-    result: "CROSS THE LINE: THE ORIENTATION SIGN FLIPS",
+    name: "METRIC SINGULAR / FOLD",
+    action: "det g = λ̄² → 0 · g⁻¹ UNDEFINED",
+    result: "FRONT NORMAL REMAINS · CROSSING FLIPS SIGN",
   },
   reversed: {
-    name: "REVERSED REGION",
-    action: "LOCAL v: SOURCE ↑ → IMAGE ↓",
+    name: "REVERSED SHEET",
+    action: "λ̄ < 0 · ORIENTED BLOCH AREA SUBTRACTS",
     result: "GATE PACKET COLLECTED HERE: −1",
   },
   cusp: {
-    name: "CUSP POINT",
-    action: "TWO FOLD LINES MEET · LOCAL RESPONSE → 0",
-    result: "NO DAMAGE · NO PICKUP · GEOMETRY MARKER",
+    name: "WHITNEY CUSP",
+    action: "KERNEL TANGENT TO Σ · FOLD IMAGE FORMS A CUSP",
+    result: "SINGULAR-CURVATURE WARNING · NO DAMAGE · NO PICKUP",
   },
 };
 
@@ -267,7 +266,12 @@ function drawFoldDomain(context, width, height, time) {
     const y1 = pad + branches[0] * usableHeight;
     const y2 = pad + branches[1] * usableHeight;
     context.fillStyle = "rgba(255, 111, 145, 0.115)";
-    context.fillRect(x, y1, usableWidth / samples + 1, y2 - y1);
+    if (orientationAt(u, (branches[0] + branches[1]) / 2) < 0) {
+      context.fillRect(x, y1, usableWidth / samples + 1, y2 - y1);
+    } else {
+      context.fillRect(x, pad, usableWidth / samples + 1, y1 - pad);
+      context.fillRect(x, y2, usableWidth / samples + 1, pad + usableHeight - y2);
+    }
   }
 
   for (let branchIndex = 0; branchIndex < 2; branchIndex += 1) {
@@ -300,9 +304,9 @@ function drawFoldDomain(context, width, height, time) {
   context.font = '7px "IBM Plex Mono", monospace';
   context.textAlign = "center";
   context.textBaseline = "middle";
-  for (const u of [0.04, 1 / 3, 2 / 3]) {
-    const point = domainPoint({ u, v: 0.5 }, width, height, pad);
-    context.fillText("J < 0 · REVERSED", point.x, point.y);
+  for (const source of [{ u: 0.58, v: 0.58 }, { u: 0.72, v: 0.72 }]) {
+    const point = domainPoint(source, width, height, pad);
+    context.fillText("λ̄ < 0 · REVERSED", point.x, point.y);
   }
   context.restore();
 
@@ -326,8 +330,8 @@ function drawFoldDomain(context, width, height, time) {
     context.shadowBlur = 0;
     context.fillStyle = "rgba(255, 201, 107, 0.86)";
     context.font = '6px "IBM Plex Mono", monospace';
-    context.textAlign = cusp.u > 0.86 ? "right" : "left";
-    context.fillText("CUSP", cusp.u > 0.86 ? -9 : 9, -8);
+    context.textAlign = cusp.u > 0.78 ? "right" : "left";
+    context.fillText("WHITNEY CUSP", cusp.u > 0.78 ? -9 : 9, -8);
     context.restore();
   }
   context.restore();
@@ -526,15 +530,12 @@ function drawDomain(time) {
   context.restore();
 }
 
-function torusWorld(point) {
-  const theta = TAU * point.u;
-  const phi = TAU * point.v;
-  const major = 1.34;
-  const minor = 0.54;
+function sphereWorld(point) {
+  const radius = 1.48;
   return {
-    x: (major + minor * Math.cos(phi)) * Math.cos(theta),
-    y: (major + minor * Math.cos(phi)) * Math.sin(theta),
-    z: minor * Math.sin(phi),
+    x: radius * point.x,
+    y: radius * point.y,
+    z: radius * point.z,
   };
 }
 
@@ -547,7 +548,7 @@ function projectWorld(world, width, height) {
   const rotatedY = world.x * sinYaw + world.y * cosYaw;
   const screenY = world.z * cosPitch - rotatedY * sinPitch;
   const depth = rotatedY * cosPitch + world.z * sinPitch;
-  const scale = Math.min(width / 4.45, height / 2.8);
+  const scale = Math.min(width / 3.7, height / 3.25);
   return {
     x: width / 2 + rotatedX * scale,
     y: height / 2 + screenY * scale,
@@ -556,49 +557,58 @@ function projectWorld(world, width, height) {
   };
 }
 
-function projectTorus(point, width, height) {
-  return projectWorld(torusWorld(point), width, height);
+function projectState(point, width, height) {
+  return projectWorld(sphereWorld(point), width, height);
 }
 
-function buildTorusMesh(width, height) {
-  const uSegments = 44;
-  const vSegments = 19;
+function spherePoint(longitude, latitude) {
+  const sinLatitude = Math.sin(latitude);
+  return {
+    x: sinLatitude * Math.cos(longitude),
+    y: sinLatitude * Math.sin(longitude),
+    z: Math.cos(latitude),
+  };
+}
+
+function buildSphereMesh(width, height) {
+  const longitudeSegments = 48;
+  const latitudeSegments = 24;
   const quads = [];
-  for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
-    for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
-      const u0 = uIndex / uSegments;
-      const u1 = (uIndex + 1) / uSegments;
-      const v0 = vIndex / vSegments;
-      const v1 = (vIndex + 1) / vSegments;
+  for (let longitudeIndex = 0; longitudeIndex < longitudeSegments; longitudeIndex += 1) {
+    for (let latitudeIndex = 0; latitudeIndex < latitudeSegments; latitudeIndex += 1) {
+      const longitude0 = TAU * longitudeIndex / longitudeSegments;
+      const longitude1 = TAU * (longitudeIndex + 1) / longitudeSegments;
+      const latitude0 = Math.PI * latitudeIndex / latitudeSegments;
+      const latitude1 = Math.PI * (latitudeIndex + 1) / latitudeSegments;
       const points = [
-        projectTorus({ u: u0, v: v0 }, width, height),
-        projectTorus({ u: u1, v: v0 }, width, height),
-        projectTorus({ u: u1, v: v1 }, width, height),
-        projectTorus({ u: u0, v: v1 }, width, height),
+        projectState(spherePoint(longitude0, latitude0), width, height),
+        projectState(spherePoint(longitude1, latitude0), width, height),
+        projectState(spherePoint(longitude1, latitude1), width, height),
+        projectState(spherePoint(longitude0, latitude1), width, height),
       ];
       quads.push({
         points,
         depth: points.reduce((sum, point) => sum + point.depth, 0) / points.length,
-        u: (u0 + u1) / 2,
-        v: (v0 + v1) / 2,
+        longitude: (longitude0 + longitude1) / 2,
+        latitude: (latitude0 + latitude1) / 2,
       });
     }
   }
   return quads.sort((a, b) => a.depth - b.depth);
 }
 
-function drawTorusMesh(context, width, height) {
-  const mesh = buildTorusMesh(width, height);
+function drawSphereMesh(context, width, height) {
+  const mesh = buildSphereMesh(width, height);
   for (const quad of mesh) {
-    const light = Math.round(10 + ((quad.depth + 1.8) / 3.6) * 9);
-    const stripe = Math.sin(quad.v * TAU * 4 + quad.u * TAU) * 2;
+    const light = Math.round(10 + ((quad.depth + 1.5) / 3) * 11);
+    const stripe = Math.sin(quad.latitude * 6 + quad.longitude * 2) * 1.6;
     context.beginPath();
     context.moveTo(quad.points[0].x, quad.points[0].y);
     for (let index = 1; index < quad.points.length; index += 1) {
       context.lineTo(quad.points[index].x, quad.points[index].y);
     }
     context.closePath();
-    context.fillStyle = `hsl(${184 + stripe * 2} 29% ${light + stripe}%)`;
+    context.fillStyle = `hsl(${184 + stripe * 2} 31% ${light + stripe}%)`;
     context.strokeStyle = quad.depth > 0.3
       ? "rgba(117, 198, 190, 0.12)"
       : "rgba(66, 112, 111, 0.055)";
@@ -612,10 +622,10 @@ function drawProjectedCurve(context, points, width, height, options = {}) {
   if (points.length < 2) return;
   context.save();
   context.beginPath();
-  let previous = projectTorus(points[0], width, height);
+  let previous = projectState(points[0], width, height);
   context.moveTo(previous.x, previous.y);
   for (let index = 1; index < points.length; index += 1) {
-    const projected = projectTorus(points[index], width, height);
+    const projected = projectState(points[index], width, height);
     context.lineTo(projected.x, projected.y);
     previous = projected;
   }
@@ -646,10 +656,7 @@ function drawStateFolds(context, width, height) {
         segment = [];
         continue;
       }
-      segment.push({
-        u,
-        v: foldPhase(u, branches[branchIndex]),
-      });
+      segment.push(mapToState({ u, v: branches[branchIndex] }));
     }
     if (segment.length > 1) {
       drawProjectedCurve(context, segment, width, height, {
@@ -667,8 +674,8 @@ function drawStateTrail(context, width, height) {
   context.save();
   context.lineCap = "round";
   for (let index = 1; index < trail.length; index += 1) {
-    const previous = projectTorus(trail[index - 1].mapped, width, height);
-    const current = projectTorus(trail[index].mapped, width, height);
+    const previous = projectState(trail[index - 1].mapped, width, height);
+    const current = projectState(trail[index].mapped, width, height);
     const freshness = index / trail.length;
     context.beginPath();
     context.moveTo(previous.x, previous.y);
@@ -688,7 +695,7 @@ function drawStateGate(context, gate, index, width, height, time) {
   const collected = game.collected.includes(gate.id);
   const active = !game.mission.ordered || index === game.nextGate;
   const alpha = collected ? 0.22 : (active ? 1 : 0.18);
-  const point = projectTorus({ u: gate.stateU, v: gate.stateV }, width, height);
+  const point = projectState({ x: gate.stateX, y: gate.stateY, z: gate.stateZ }, width, height);
   const scale = Math.max(0.72, 1 + point.depth * 0.11);
   const color = gate.requiredOrientation < 0 ? "#ff6f91" : "#65ffe2";
   const radius = (9 + (active ? Math.sin(time * 0.004 + index) * 2 : 0)) * scale;
@@ -723,7 +730,7 @@ function drawCoverageStamps(context, width, height, time) {
   for (let index = 0; index < game.collected.length; index += 1) {
     const gate = game.mission.gates.find((candidate) => candidate.id === game.collected[index]);
     if (!gate) continue;
-    const projected = projectTorus({ u: gate.stateU, v: gate.stateV }, width, height);
+    const projected = projectState({ x: gate.stateX, y: gate.stateY, z: gate.stateZ }, width, height);
     const sign = gate.requiredOrientation;
     context.save();
     context.globalAlpha = 0.22;
@@ -745,7 +752,7 @@ function drawCoverageStamps(context, width, height, time) {
 }
 
 function drawMappedPlayer(context, width, height, time) {
-  const point = projectTorus(game.mapped, width, height);
+  const point = projectState(game.mapped, width, height);
   const color = game.orientation > 0 ? "#65ffe2" : "#ff6f91";
   const pulse = 1 + Math.sin(time * 0.008) * 0.08;
   context.save();
@@ -801,7 +808,7 @@ function drawSurface(time) {
   }
   context.restore();
 
-  drawTorusMesh(context, width, height);
+  drawSphereMesh(context, width, height);
   drawStateFolds(context, width, height);
   drawCoverageStamps(context, width, height, time);
   drawStateTrail(context, width, height);
@@ -833,18 +840,18 @@ function updateTelemetry() {
   ui.orientationCard.classList.toggle("orientation-negative", game.orientation < 0);
   ui.multiplicityValue.textContent = `${game.multiplicity}×`;
 
-  const stretch = Math.abs(orientationValue(game.source.u, game.source.v));
-  ui.stretchValue.textContent = stretch.toFixed(2);
-  ui.stretchWord.textContent = stretch < 0.18
-    ? "COMPRESSED"
-    : stretch > 1.7
-      ? "STRETCHED"
-      : "STEADY";
+  const density = Math.abs(orientationValue(game.source.u, game.source.v));
+  ui.stretchValue.textContent = density.toFixed(3);
+  ui.stretchWord.textContent = density < 0.035
+    ? "RANK LOSS"
+    : density > 0.3
+      ? "STRONG AREA"
+      : "REGULAR";
 
   const fieldEffect = game.fieldEffect;
   const fieldCopy = FIELD_EFFECT_COPY[fieldEffect.kind];
   ui.fieldEffectCard.dataset.kind = fieldEffect.kind;
-  ui.fieldEffectName.textContent = `${fieldCopy.name} · J ${formatSigned(fieldEffect.jacobian, 2)}`;
+  ui.fieldEffectName.textContent = `${fieldCopy.name} · λ̄ ${formatSigned(fieldEffect.signedDensity, 3)}`;
   ui.fieldEffectAction.textContent = fieldCopy.action;
   ui.fieldEffectResult.textContent = fieldCopy.result;
   ui.cuspAlert.hidden = fieldEffect.kind !== "cusp";
@@ -864,7 +871,7 @@ function updateTelemetry() {
   }
 
   ui.sourceCoordinates.textContent = `u ${game.source.u.toFixed(3)} // v ${game.source.v.toFixed(3)}`;
-  ui.stateCoordinates.textContent = `θ ${game.mapped.u.toFixed(3)} // φ ${game.mapped.v.toFixed(3)}`;
+  ui.stateCoordinates.textContent = `n (${game.mapped.x.toFixed(2)}, ${game.mapped.y.toFixed(2)}, ${game.mapped.z.toFixed(2)})`;
   ui.cameraPhase.textContent = `VIEW ${String(Math.round((((camera.yaw % TAU) + TAU) % TAU) * 180 / Math.PI)).padStart(3, "0")}°`;
   ui.rawValue.textContent = game.coverage.rawArea.toFixed(0);
   ui.signedValue.textContent = formatSigned(game.coverage.signedArea);
@@ -905,8 +912,8 @@ const completionCopy = {
     summary: "Raw coverage reached five, but paired opposite layers erased one another. Signed coverage—not apparent sweep—carried the mission.",
   },
   free: {
-    title: "Global charge locked at +2.",
-    summary: "Your route crossed stretched, compressed, positive, and reversed regions. The local motion was messy; the closed global answer stayed integer.",
+    title: "Chern receipt locked at +1.",
+    summary: "Three positive and two negative evidence packets reproduced the model's Chern integer. The packet score is a playable proxy for the full BZ integral.",
   },
 };
 
