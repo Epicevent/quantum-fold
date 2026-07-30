@@ -140,6 +140,10 @@ a {
   margin-bottom: 16px;
 }
 
+.example-tabs.three-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .example-tabs button {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -212,6 +216,63 @@ a {
 
 .formula.compact {
   font-size: clamp(17px, 1.8vw, 22px);
+}
+
+.formula.swallow-formula {
+  max-width: 460px;
+  font-size: clamp(15px, 1.55vw, 20px);
+  white-space: normal;
+}
+
+.event-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 20px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.event-strip > div {
+  min-width: 0;
+  padding: 14px;
+}
+
+.event-strip > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.event-strip small {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.event-strip b {
+  display: block;
+  overflow: hidden;
+  font-size: clamp(12px, 1.35vw, 16px);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-strip [data-state="positive"] b,
+.event-strip [data-state="regular"] b {
+  color: var(--cyan);
+}
+
+.event-strip [data-state="negative"] b {
+  color: var(--coral);
+}
+
+.event-strip [data-state="singular"] {
+  background: rgba(var(--amber-rgb), 0.11);
+}
+
+.event-strip [data-state="singular"] b {
+  color: var(--amber);
 }
 
 .live-strip,
@@ -399,6 +460,25 @@ a {
   background: transparent;
 }
 
+.direction-key::before {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  margin-right: 7px;
+  vertical-align: middle;
+  content: "";
+}
+
+.tangent-key::before {
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.36);
+}
+
+.null-key::before {
+  background: var(--coral);
+  box-shadow: 0 0 8px rgba(var(--coral-rgb), 0.36);
+}
+
 .map-arrow {
   display: grid;
   align-content: center;
@@ -423,6 +503,42 @@ a {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
+}
+
+.interaction-dock {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.32fr) minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.interaction-dock > label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.interaction-dock output {
+  color: var(--amber);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.interaction-dock input[type="range"] {
+  width: 100%;
+  accent-color: var(--amber);
+  cursor: ew-resize;
+}
+
+.interaction-dock .demo-actions {
+  margin-top: 0;
 }
 
 .demo-actions button {
@@ -489,6 +605,26 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .example-tabs.three-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .event-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .event-strip > div:nth-child(3) {
+    border-left: 0;
+  }
+
+  .event-strip > div:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .interaction-dock {
+    grid-template-columns: 1fr;
+  }
+
   .difference-strip > div + div {
     border-top: 1px solid var(--line);
     border-left: 0;
@@ -504,6 +640,16 @@ a {
 
   .example-tabs {
     grid-template-columns: 1fr;
+  }
+
+  .event-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .event-strip > div + div,
+  .event-strip > div:nth-child(3) {
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 
   .live-strip {

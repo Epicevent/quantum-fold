@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#071019">
     <meta
       name="description"
-      content="Compare a local cuspidal-edge front with the two-band torus-to-Bloch-sphere projector map, and drag a point across each singular curve."
+      content="Follow a singular curve, compare its tangent with the null direction, and experience the alignment event that creates a swallowtail or Whitney cusp."
     >
-    <title>Singular Curve Lab — Quantum Fold</title>
+    <title>Cusp Alignment Lab — Quantum Fold</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./map-lab.css">
   </head>
@@ -27,68 +27,132 @@
       </header>
 
       <section class="lab-intro">
-        <p class="eyebrow">DRAG ONE SOURCE POINT · WATCH ITS IMAGE</p>
-        <h1>노란 점이 아니라, <em>노란 곡선 전체</em>가 singular set입니다.</h1>
-        <p>왼쪽에서 점을 움직이면 오른쪽의 대응점이 움직입니다. 노란 선 위에서는 미분의 rank가 떨어집니다.</p>
+        <p class="eyebrow">FOLLOW THE CURVE · WATCH TWO DIRECTIONS</p>
+        <h1>Cusp는 위치가 아니라 <em>두 방향이 포개지는 사건</em>입니다.</h1>
+        <p>노란 singular curve를 따라가십시오. 청록 접선 γ′과 분홍 null 방향 η가 포개지면 image의 진행속도가 0이 됩니다.</p>
       </section>
 
-      <div class="example-tabs" role="tablist" aria-label="Singular map examples">
-        <button id="front-tab" type="button" role="tab" aria-selected="true" aria-controls="front-example">
+      <div class="example-tabs three-tabs" role="tablist" aria-label="Cusp alignment stages">
+        <button id="edge-tab" type="button" role="tab" aria-selected="true" aria-controls="edge-example">
           <span>01</span>
-          <b>LOCAL FRONT</b>
-          <small>ℝ² → ℝ³ · cuspidal edge</small>
+          <b>CUSPIDAL EDGE</b>
+          <small>directions never align</small>
+        </button>
+        <button id="swallow-tab" type="button" role="tab" aria-selected="false" aria-controls="swallow-example">
+          <span>02</span>
+          <b>SWALLOWTAIL</b>
+          <small>alignment happens once</small>
         </button>
         <button id="projector-tab" type="button" role="tab" aria-selected="false" aria-controls="projector-example">
-          <span>02</span>
-          <b>PROJECTOR MAP</b>
-          <small>T² → S² · paper model</small>
+          <span>03</span>
+          <b>PROJECTOR CUSP</b>
+          <small>the paper's T² → S² map</small>
         </button>
       </div>
 
-      <section class="example" id="front-example" role="tabpanel" aria-labelledby="front-tab">
+      <section class="example" id="edge-example" role="tabpanel" aria-labelledby="edge-tab">
         <header class="example-heading">
           <div>
-            <p class="eyebrow">ANNALS LOCAL MODEL</p>
-            <h2>평면의 선 (u=0)이 3차원에서 날카로운 edge가 됩니다.</h2>
+            <p class="eyebrow">ANNALS CONTROL CASE</p>
+            <h2>곡선을 끝까지 따라가도 두 방향은 계속 교차합니다.</h2>
           </div>
           <div class="formula" aria-label="f C of u v equals u squared, u cubed, v">
             f<sub>C</sub>(u,v) = (u², u³, v)
           </div>
         </header>
 
-        <div class="live-strip" aria-live="polite">
-          <div><small>SOURCE</small><b id="front-source-value">(u,v) = (0.72, 0.20)</b></div>
-          <i aria-hidden="true">→</i>
-          <div><small>IMAGE</small><b id="front-image-value">f = (0.52, 0.37, 0.20)</b></div>
-          <i aria-hidden="true">→</i>
-          <div id="front-rank-box" data-state="regular"><small>DIFFERENTIAL</small><b id="front-rank-value">rank df = 2 · REGULAR</b></div>
+        <div class="event-strip" aria-live="polite">
+          <div><small>CURVE POSITION</small><b id="edge-parameter-value">s = −0.72</b></div>
+          <div><small>ALIGNMENT TEST</small><b id="edge-det-value">det(γ′,η) = −1.000</b></div>
+          <div><small>IMAGE SPEED</small><b id="edge-speed-value">|(f∘γ)′| = 1.000</b></div>
+          <div id="edge-verdict" data-state="regular"><small>EVENT</small><b>TRANSVERSE · NO CUSP POINT</b></div>
         </div>
 
         <div class="map-stage">
           <article class="map-panel">
-            <header><b>DOMAIN ℝ²</b><span>DRAG THE WHITE POINT</span></header>
+            <header><b>DOMAIN ℝ²</b><span>DRAG ALONG THE AMBER CURVE</span></header>
             <div class="canvas-wrap">
-              <canvas id="front-domain" aria-label="Parameter plane with the singular curve u equals zero"></canvas>
-              <div class="curve-label curve-label-domain">SINGULAR CURVE · u = 0</div>
+              <canvas id="edge-domain" aria-label="Cuspidal-edge domain with singular tangent and null direction"></canvas>
+              <div class="curve-label curve-label-domain">Σ: u = 0</div>
             </div>
-            <footer><span class="key positive">u &gt; 0 sheet</span><span class="key singular">all of u = 0 is singular</span><span class="key negative">u &lt; 0 sheet</span></footer>
+            <footer>
+              <span class="direction-key tangent-key">γ′ singular tangent</span>
+              <span class="direction-key null-key">η = ker df</span>
+            </footer>
           </article>
 
-          <div class="map-arrow" aria-hidden="true"><span>f</span><b>→</b></div>
+          <div class="map-arrow" aria-hidden="true"><span>f<sub>C</sub></span><b>→</b></div>
 
           <article class="map-panel">
             <header><b>IMAGE IN ℝ³</b><span>DRAG TO ROTATE</span></header>
             <div class="canvas-wrap">
-              <canvas id="front-image" aria-label="Cuspidal-edge surface with its one-dimensional singular edge"></canvas>
-              <div class="curve-label curve-label-image">IMAGE OF THE CURVE · f<sub>C</sub>(0,v)</div>
+              <canvas id="edge-image" aria-label="Cuspidal-edge surface whose singular image continues at constant speed"></canvas>
+              <div class="curve-label curve-label-image">IMAGE EDGE NEVER STOPS</div>
             </div>
-            <footer><span>two colored sheets meet along one amber edge</span></footer>
+            <footer><span>the selected image keeps moving along f<sub>C</sub>(0,s)</span></footer>
           </article>
         </div>
 
-        <div class="demo-actions">
-          <button id="front-on-curve" type="button">노란 곡선 위에 놓기</button>
-          <button id="front-cross" class="primary" type="button">곡선을 가로질러 보기</button>
+        <div class="interaction-dock">
+          <label for="edge-parameter"><span>FOLLOW Σ</span><output id="edge-slider-output">−0.72</output></label>
+          <input id="edge-parameter" type="range" min="-1" max="1" value="-0.72" step="0.001">
+          <div class="demo-actions">
+            <button id="edge-probe" type="button">null 방향을 눌러 보기</button>
+            <button id="edge-play" class="primary" type="button">곡선 끝까지 따라가기</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="example" id="swallow-example" role="tabpanel" aria-labelledby="swallow-tab" hidden>
+        <header class="example-heading">
+          <div>
+            <p class="eyebrow">ANNALS DECISIVE EXAMPLE</p>
+            <h2>한 점에서 γ′과 η가 포개지고 image가 멈추며 tail이 뒤집힙니다.</h2>
+          </div>
+          <div class="formula swallow-formula" aria-label="standard swallowtail front">
+            f<sub>S</sub>(u,v) = (3u⁴+u²v, 4u³+2uv, v)
+          </div>
+        </header>
+
+        <div class="event-strip" aria-live="polite">
+          <div><small>CURVE POSITION</small><b id="swallow-parameter-value">t = −0.58</b></div>
+          <div><small>ALIGNMENT TEST</small><b id="swallow-det-value">det(γ′,η) = −6.960</b></div>
+          <div><small>IMAGE SPEED</small><b id="swallow-speed-value">|(f∘γ)′| = 10.914</b></div>
+          <div id="swallow-verdict" data-state="negative"><small>EVENT</small><b>APPROACHING ALIGNMENT</b></div>
+        </div>
+
+        <div class="map-stage">
+          <article class="map-panel">
+            <header><b>DOMAIN ℝ²</b><span>Σ: v = −6u²</span></header>
+            <div class="canvas-wrap">
+              <canvas id="swallow-domain" aria-label="Swallowtail domain showing the singular tangent rotate into the null direction"></canvas>
+              <div class="curve-label curve-label-domain">MAKE det(γ′,η) = 0</div>
+            </div>
+            <footer>
+              <span class="direction-key tangent-key">γ′ = (1,−12t)</span>
+              <span class="direction-key null-key">η = (1,0)</span>
+            </footer>
+          </article>
+
+          <div class="map-arrow" aria-hidden="true"><span>f<sub>S</sub></span><b>→</b></div>
+
+          <article class="map-panel">
+            <header><b>SWALLOWTAIL IN ℝ³</b><span>DRAG TO ROTATE</span></header>
+            <div class="canvas-wrap">
+              <canvas id="swallow-image" aria-label="Standard swallowtail with the singular image point stopping at the alignment event"></canvas>
+              <div class="curve-label curve-label-image" id="swallow-image-label">IMAGE SPEED FALLING</div>
+            </div>
+            <footer><span>at t = 0: (f<sub>S</sub>∘γ)′ = 0 and det(γ′,η) changes sign</span></footer>
+          </article>
+        </div>
+
+        <div class="interaction-dock">
+          <label for="swallow-parameter"><span>FOLLOW Σ THROUGH THE TAIL</span><output id="swallow-slider-output">−0.58</output></label>
+          <input id="swallow-parameter" type="range" min="-0.68" max="0.68" value="-0.58" step="0.001">
+          <div class="demo-actions">
+            <button id="swallow-probe" type="button">null 방향을 눌러 보기</button>
+            <button id="swallow-play" class="primary" type="button">alignment를 통과하기</button>
+          </div>
         </div>
       </section>
 
@@ -96,29 +160,32 @@
         <header class="example-heading">
           <div>
             <p class="eyebrow">THE PAPER'S TWO-BAND MAP</p>
-            <h2>토러스의 닫힌 fold curve Σ가 Bloch sphere 위에서 되접힙니다.</h2>
+            <h2>같은 판정을 실제 fold curve Σ 위의 한 cusp에서 다시 수행합니다.</h2>
           </div>
           <div class="formula compact" aria-label="n of k equals minus d of k divided by its length">
-            n(k) = −d(k)/|d(k)|
+            P:T²→S², &nbsp; n(k)=−d(k)/|d(k)|
           </div>
         </header>
 
-        <div class="live-strip" aria-live="polite">
-          <div><small>SOURCE</small><b id="projector-source-value">k = (0.70π, 0.10π)</b></div>
-          <i aria-hidden="true">→</i>
-          <div><small>BLOCH IMAGE</small><b id="projector-image-value">n = (−0.55, −0.21, 0.81)</b></div>
-          <i aria-hidden="true">→</i>
-          <div id="projector-rank-box" data-state="regular"><small>SIGNED AREA DENSITY</small><b id="projector-rank-value">λ̄ &gt; 0 · rank dP = 2</b></div>
+        <div class="event-strip" aria-live="polite">
+          <div><small>CURVE POSITION</small><b id="projector-parameter-value">r = −0.24</b></div>
+          <div><small>ALIGNMENT TEST</small><b id="projector-det-value">det(γ′,η) = +0.402</b></div>
+          <div><small>IMAGE SPEED</small><b id="projector-speed-value">|(P∘γ)′| = 0.532</b></div>
+          <div id="projector-verdict" data-state="positive"><small>EVENT</small><b>ORDINARY FOLD</b></div>
         </div>
 
         <div class="map-stage">
           <article class="map-panel">
-            <header><b>DOMAIN T² · BRILLOUIN ZONE</b><span>OPPOSITE EDGES ARE IDENTIFIED</span></header>
+            <header><b>DOMAIN T² · BRILLOUIN ZONE</b><span>FOLLOW ONE ARC OF Σ</span></header>
             <div class="canvas-wrap">
-              <canvas id="projector-domain" aria-label="Brillouin-zone torus chart with the complete fold curve Sigma and four cusp points"></canvas>
-              <div class="curve-label curve-label-domain">Σ · λ̄(k) = 0 · 1D CLOSED CURVE</div>
+              <canvas id="projector-domain" aria-label="Brillouin-zone fold curve with its tangent and the projector null direction"></canvas>
+              <div class="curve-label curve-label-domain">TARGET: (π/2,π/2)</div>
             </div>
-            <footer><span class="key positive">λ̄ &gt; 0</span><span class="key singular">Σ: every amber point is singular</span><span class="key cusp">△: four cusp points on Σ</span><span class="key negative">λ̄ &lt; 0</span></footer>
+            <footer>
+              <span class="direction-key tangent-key">γ′ tangent to Σ</span>
+              <span class="direction-key null-key">η = ker dP</span>
+              <span class="key cusp">△ other cusps on Σ</span>
+            </footer>
           </article>
 
           <div class="map-arrow" aria-hidden="true"><span>P</span><b>→</b></div>
@@ -126,24 +193,27 @@
           <article class="map-panel">
             <header><b>IMAGE S² · BLOCH SPHERE</b><span>DRAG TO ROTATE</span></header>
             <div class="canvas-wrap">
-              <canvas id="projector-image" aria-label="Bloch sphere with the image of the fold curve and the mapped selected point"></canvas>
-              <div class="curve-label curve-label-image">P(Σ) · SINGULAR VALUE CURVE</div>
+              <canvas id="projector-image" aria-label="Bloch sphere showing the singular value curve stop at the projector cusp"></canvas>
+              <div class="curve-label curve-label-image" id="projector-image-label">P(Σ) IS STILL MOVING</div>
             </div>
-            <footer><span>the white point is P(k); the amber trace is the image of all of Σ</span></footer>
+            <footer><span>at r = 0: γ′ = η, so dP(γ′) = 0</span></footer>
           </article>
         </div>
 
-        <div class="demo-actions">
-          <button id="projector-on-curve" type="button">ordinary fold 위에 놓기</button>
-          <button id="projector-on-cusp" type="button">cusp 점으로 가기</button>
-          <button id="projector-cross" class="primary" type="button">fold를 가로질러 보기</button>
+        <div class="interaction-dock">
+          <label for="projector-parameter"><span>FOLLOW Σ THROUGH ONE CUSP</span><output id="projector-slider-output">−0.24</output></label>
+          <input id="projector-parameter" type="range" min="-0.34" max="0.34" value="-0.24" step="0.001">
+          <div class="demo-actions">
+            <button id="projector-probe" type="button">ker dP 방향을 눌러 보기</button>
+            <button id="projector-play" class="primary" type="button">Whitney cusp를 통과하기</button>
+          </div>
         </div>
       </section>
 
-      <section class="difference-strip" aria-label="The exact relationship between the two examples">
-        <div><small>SAME MECHANISM</small><b>domain의 1차원 곡선에서 미분의 rank가 떨어진다.</b></div>
-        <div><small>LOCAL EXAMPLE</small><b>u = 0 전체가 singular curve이고, 그 image가 cuspidal edge다.</b></div>
-        <div><small>PAPER MAP</small><b>Σ 전체가 fold curve이고, cusp는 Σ 위의 특별한 네 점이다.</b></div>
+      <section class="difference-strip" aria-label="What the three interactions establish">
+        <div><small>01 · CONTROL</small><b>cuspidal edge에서는 γ′과 η가 횡단하고 image edge가 계속 움직입니다.</b></div>
+        <div><small>02 · DISCOVERY</small><b>swallowtail에서는 det(γ′,η)가 0을 지나며 image speed도 0이 됩니다.</b></div>
+        <div><small>03 · TRANSFER</small><b>projector cusp도 같은 alignment 사건이며, 네 위치 표시는 그 결과일 뿐입니다.</b></div>
       </section>
     </main>
 
