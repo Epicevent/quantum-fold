@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071019">
+    <meta
+      name="description"
+      content="Compare a local cuspidal-edge front with the two-band torus-to-Bloch-sphere projector map, and drag a point across each singular curve."
+    >
+    <title>Singular Curve Lab — Quantum Fold</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./map-lab.css">
+  </head>
+  <body>
+    <main class="lab-app">
+      <header class="lab-topbar">
+        <a class="lab-brand" href="./index.html">
+          <span aria-hidden="true">Σ</span>
+          <b>QUANTUM FOLD</b>
+        </a>
+        <nav aria-label="Pages">
+          <a href="./index.html">TORUS GAME</a>
+          <a href="./shooter.html">TRACE A/B</a>
+          <a href="./philosophy.html">SPEC</a>
+        </nav>
+      </header>
+
+      <section class="lab-intro">
+        <p class="eyebrow">DRAG ONE SOURCE POINT · WATCH ITS IMAGE</p>
+        <h1>노란 점이 아니라, <em>노란 곡선 전체</em>가 singular set입니다.</h1>
+        <p>왼쪽에서 점을 움직이면 오른쪽의 대응점이 움직입니다. 노란 선 위에서는 미분의 rank가 떨어집니다.</p>
+      </section>
+
+      <div class="example-tabs" role="tablist" aria-label="Singular map examples">
+        <button id="front-tab" type="button" role="tab" aria-selected="true" aria-controls="front-example">
+          <span>01</span>
+          <b>LOCAL FRONT</b>
+          <small>ℝ² → ℝ³ · cuspidal edge</small>
+        </button>
+        <button id="projector-tab" type="button" role="tab" aria-selected="false" aria-controls="projector-example">
+          <span>02</span>
+          <b>PROJECTOR MAP</b>
+          <small>T² → S² · paper model</small>
+        </button>
+      </div>
+
+      <section class="example" id="front-example" role="tabpanel" aria-labelledby="front-tab">
+        <header class="example-heading">
+          <div>
+            <p class="eyebrow">ANNALS LOCAL MODEL</p>
+            <h2>평면의 선 (u=0)이 3차원에서 날카로운 edge가 됩니다.</h2>
+          </div>
+          <div class="formula" aria-label="f C of u v equals u squared, u cubed, v">
+            f<sub>C</sub>(u,v) = (u², u³, v)
+          </div>
+        </header>
+
+        <div class="live-strip" aria-live="polite">
+          <div><small>SOURCE</small><b id="front-source-value">(u,v) = (0.72, 0.20)</b></div>
+          <i aria-hidden="true">→</i>
+          <div><small>IMAGE</small><b id="front-image-value">f = (0.52, 0.37, 0.20)</b></div>
+          <i aria-hidden="true">→</i>
+          <div id="front-rank-box" data-state="regular"><small>DIFFERENTIAL</small><b id="front-rank-value">rank df = 2 · REGULAR</b></div>
+        </div>
+
+        <div class="map-stage">
+          <article class="map-panel">
+            <header><b>DOMAIN ℝ²</b><span>DRAG THE WHITE POINT</span></header>
+            <div class="canvas-wrap">
+              <canvas id="front-domain" aria-label="Parameter plane with the singular curve u equals zero"></canvas>
+              <div class="curve-label curve-label-domain">SINGULAR CURVE · u = 0</div>
+            </div>
+            <footer><span class="key positive">u &gt; 0 sheet</span><span class="key singular">all of u = 0 is singular</span><span class="key negative">u &lt; 0 sheet</span></footer>
+          </article>
+
+          <div class="map-arrow" aria-hidden="true"><span>f</span><b>→</b></div>
+
+          <article class="map-panel">
+            <header><b>IMAGE IN ℝ³</b><span>DRAG TO ROTATE</span></header>
+            <div class="canvas-wrap">
+              <canvas id="front-image" aria-label="Cuspidal-edge surface with its one-dimensional singular edge"></canvas>
+              <div class="curve-label curve-label-image">IMAGE OF THE CURVE · f<sub>C</sub>(0,v)</div>
+            </div>
+            <footer><span>two colored sheets meet along one amber edge</span></footer>
+          </article>
+        </div>
+
+        <div class="demo-actions">
+          <button id="front-on-curve" type="button">노란 곡선 위에 놓기</button>
+          <button id="front-cross" class="primary" type="button">곡선을 가로질러 보기</button>
+        </div>
+      </section>
+
+      <section class="example" id="projector-example" role="tabpanel" aria-labelledby="projector-tab" hidden>
+        <header class="example-heading">
+          <div>
+            <p class="eyebrow">THE PAPER'S TWO-BAND MAP</p>
+            <h2>토러스의 닫힌 fold curve Σ가 Bloch sphere 위에서 되접힙니다.</h2>
+          </div>
+          <div class="formula compact" aria-label="n of k equals minus d of k divided by its length">
+            n(k) = −d(k)/|d(k)|
+          </div>
+        </header>
+
+        <div class="live-strip" aria-live="polite">
+          <div><small>SOURCE</small><b id="projector-source-value">k = (0.70π, 0.10π)</b></div>
+          <i aria-hidden="true">→</i>
+          <div><small>BLOCH IMAGE</small><b id="projector-image-value">n = (−0.55, −0.21, 0.81)</b></div>
+          <i aria-hidden="true">→</i>
+          <div id="projector-rank-box" data-state="regular"><small>SIGNED AREA DENSITY</small><b id="projector-rank-value">λ̄ &gt; 0 · rank dP = 2</b></div>
+        </div>
+
+        <div class="map-stage">
+          <article class="map-panel">
+            <header><b>DOMAIN T² · BRILLOUIN ZONE</b><span>OPPOSITE EDGES ARE IDENTIFIED</span></header>
+            <div class="canvas-wrap">
+              <canvas id="projector-domain" aria-label="Brillouin-zone torus chart with the complete fold curve Sigma and four cusp points"></canvas>
+              <div class="curve-label curve-label-domain">Σ · λ̄(k) = 0 · 1D CLOSED CURVE</div>
+            </div>
+            <footer><span class="key positive">λ̄ &gt; 0</span><span class="key singular">Σ: every amber point is singular</span><span class="key cusp">△: four cusp points on Σ</span><span class="key negative">λ̄ &lt; 0</span></footer>
+          </article>
+
+          <div class="map-arrow" aria-hidden="true"><span>P</span><b>→</b></div>
+
+          <article class="map-panel">
+            <header><b>IMAGE S² · BLOCH SPHERE</b><span>DRAG TO ROTATE</span></header>
+            <div class="canvas-wrap">
+              <canvas id="projector-image" aria-label="Bloch sphere with the image of the fold curve and the mapped selected point"></canvas>
+              <div class="curve-label curve-label-image">P(Σ) · SINGULAR VALUE CURVE</div>
+            </div>
+            <footer><span>the white point is P(k); the amber trace is the image of all of Σ</span></footer>
+          </article>
+        </div>
+
+        <div class="demo-actions">
+          <button id="projector-on-curve" type="button">ordinary fold 위에 놓기</button>
+          <button id="projector-on-cusp" type="button">cusp 점으로 가기</button>
+          <button id="projector-cross" class="primary" type="button">fold를 가로질러 보기</button>
+        </div>
+      </section>
+
+      <section class="difference-strip" aria-label="The exact relationship between the two examples">
+        <div><small>SAME MECHANISM</small><b>domain의 1차원 곡선에서 미분의 rank가 떨어진다.</b></div>
+        <div><small>LOCAL EXAMPLE</small><b>u = 0 전체가 singular curve이고, 그 image가 cuspidal edge다.</b></div>
+        <div><small>PAPER MAP</small><b>Σ 전체가 fold curve이고, cusp는 Σ 위의 특별한 네 점이다.</b></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/map-lab.js"></script>
+  </body>
+</html>
