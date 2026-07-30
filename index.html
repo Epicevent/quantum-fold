@@ -12,7 +12,7 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
   </head>
-  <body>
+  <body data-tutorial-phase="splash">
     <div class="noise" aria-hidden="true"></div>
 
     <main class="app" id="app">
@@ -44,7 +44,7 @@
             <span aria-hidden="true">∴</span>
             <span class="button-label">SPEC</span>
           </a>
-          <button class="icon-button" id="camera-button" type="button" title="Rotate representation (C)">
+          <button class="icon-button" id="camera-button" type="button" title="Rotate representation (C)" hidden>
             <span aria-hidden="true">◒</span>
             <span class="button-label">VIEW</span>
           </button>
@@ -56,7 +56,7 @@
       </header>
 
       <section class="mission-copy" aria-live="polite">
-        <div>
+        <div class="mission-explanation">
           <span class="kicker">CURRENT DIRECTIVE</span>
           <h1 id="mission-title">No edge is an ending</h1>
           <p id="mission-brief">Thread the cyan relays. The first is across the right seam—keep flying.</p>
@@ -71,35 +71,47 @@
         </div>
       </section>
 
-      <section class="telemetry" aria-label="Live mission telemetry">
-        <div class="telemetry-item orientation-positive" id="orientation-card">
+      <section class="tutorial-command" id="tutorial-command" aria-live="assertive">
+        <div>
+          <small id="tutorial-step">STEP 1 · CROSS THE EDGE</small>
+          <strong id="tutorial-verb">HOLD EAST →</strong>
+          <span id="tutorial-detail">Fly through the glowing right edge. Do not turn back.</span>
+        </div>
+        <div class="sign-bank" id="sign-bank" aria-label="Collected signs">
+          <small>SIGN BANK</small>
+          <b id="sign-bank-value">EMPTY</b>
+        </div>
+      </section>
+
+      <section class="telemetry" id="telemetry" aria-label="Live mission telemetry">
+        <div class="telemetry-item orientation-positive" id="orientation-card" data-hud="orientation">
           <small>ORIENTATION</small>
           <strong id="orientation-value">+</strong>
           <span id="orientation-word">POSITIVE</span>
         </div>
-        <div class="telemetry-item">
+        <div class="telemetry-item" data-hud="multiplicity">
           <small>VISIBLE SOURCES</small>
           <strong id="multiplicity-value">1×</strong>
           <span>LAYER MULTIPLICITY</span>
         </div>
-        <div class="telemetry-item">
+        <div class="telemetry-item" data-hud="density">
           <small>AREA DENSITY |λ̄|</small>
           <strong id="stretch-value">1.00</strong>
           <span id="stretch-word">STEADY</span>
         </div>
-        <div class="telemetry-item telemetry-charge">
+        <div class="telemetry-item telemetry-charge" data-hud="packet">
           <small>PACKET SUM</small>
           <strong id="charge-value">0</strong>
           <span id="charge-target">AUTHORED PROXY</span>
         </div>
-        <div class="telemetry-item telemetry-timer">
+        <div class="telemetry-item telemetry-timer" data-hud="timer">
           <small>COHERENCE</small>
           <strong id="timer-value">∞</strong>
           <span id="timer-word">OPEN RUN</span>
         </div>
       </section>
 
-      <section class="live-correspondence" aria-label="Current hand calculation mapped to the game scene">
+      <section class="live-correspondence" id="live-correspondence" aria-label="Current hand calculation mapped to the game scene">
         <div>
           <small>1 · YOU MOVE THIS BZ POINT</small>
           <strong id="live-bz-point">k=(+0.00π,+0.00π)</strong>
@@ -118,6 +130,11 @@
       </section>
 
       <section class="playfield" id="playfield">
+        <div class="impact-feedback" id="impact-feedback" data-kind="positive" aria-live="assertive" hidden>
+          <strong id="impact-sign">+</strong>
+          <span id="impact-title">+ BANKED</span>
+          <small id="impact-detail">Relay took the sign of the ground beneath the ship.</small>
+        </div>
         <article class="panel domain-panel">
           <div class="panel-heading">
             <span>
@@ -186,7 +203,7 @@
         </article>
       </section>
 
-      <section class="coverage" aria-label="Authored packet evidence">
+      <section class="coverage" id="coverage" aria-label="Authored packet evidence">
         <div class="coverage-copy">
           <span class="kicker">GAME PROXY RECEIPT</span>
           <b id="coverage-message">No packet has been collected.</b>
@@ -230,18 +247,14 @@
         <i></i><i></i><i></i>
         <b>ƒ</b>
       </div>
-      <p class="start-kicker">ONE BZ POINT // ONE BLOCH IMAGE</p>
-      <h2>MOVE THE CYAN POINT.<br><em>WATCH THE WHITE POINT ANSWER.</em></h2>
-      <p class="start-copy">
-        The left point is <b>k</b>. The right point is <b>P(k)</b>.<br>
-        At the amber line, a tiny mapped area collapses and its sign flips.
-      </p>
+      <p class="start-kicker">LEFT SHIP // RIGHT SHADOW</p>
+      <h2>MOVE THE CYAN SHIP.<br><em>THE WHITE LIGHT FOLLOWS.</em></h2>
+      <p class="start-copy">Cross the right edge and touch the numbered rings.</p>
       <button class="primary-button" id="start-button" type="button">
-        <span>MOVE THE POINT</span>
+        <span>START MOVING →</span>
         <kbd>ENTER</kbd>
       </button>
-      <a class="start-mode-link" href="./shooter.html">OR TRACK EVERY PREIMAGE THROUGH FOLDS AND CUSPS <span>→</span></a>
-      <small>LEFT: BZ SOURCE · RIGHT: BLOCH IMAGE · AMBER: λ̄=0</small>
+      <small>WASD · ARROWS · TOUCH PAD</small>
     </div>
 
     <div class="pause-screen" id="pause-screen" hidden>

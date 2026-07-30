@@ -1,5 +1,7 @@
 # Quantum Fold: a torus map and two global-trace games
 
+Play: <https://epicevent.github.io/quantum-fold/>
+
 All three browser modes use the lower-band map
 
 `f:T²→S²`, `d(k)=(sin kx,sin ky,1−cos kx−cos ky)`, `f(k)=−d(k)/|d(k)|`.
@@ -28,9 +30,9 @@ npm start
 
 Open <http://127.0.0.1:4173>.
 
-- Torus: **WASD / arrows** move, **Space** shows provenance echoes, **C** rotates the representation, **M** toggles sound, **P** pauses, **R** restarts.
-- A: tap/click a root at `t−1`, then its continuation at `t`; select two roots on one layer to lock a fold pair.
-- B: **WASD / arrows** or the touch pad steer the target; tap two source roots to tag the predicted birth/death pair.
+- Torus: press Start, then follow the large verb command. **WASD / arrows** move; **Space** reveals provenance bearings; **M** toggles sound; **P** pauses; **R** restarts. Representation rotation is introduced only in mission 05 on desktop.
+- A: click any root on the left, then the same ID on the right. When a `+/−` pair appears or disappears, click both on that one panel. The first beam is untimed.
+- B: **WASD / arrows** or the touch pad steer the white target to the goal ring. The shaded lobe has three roots; each stage says whether to avoid, enter, or exit it. Click the flashing pair when prompted.
 
 ## Verify
 
@@ -38,6 +40,6 @@ Open <http://127.0.0.1:4173>.
 npm test
 ```
 
-The deterministic suite checks periodic wrap, orientation reversal, one/three preimages, signed cancellation, Chern-number integration, and the torus missions. It also asserts the three-way singularity taxonomy, that cusp proximity is not rank loss, and that every trace birth/death receipt names an ordinary point of the one-dimensional curve `Σ`. Trace tests additionally check the closed-form meridian roots, stable IDs across a torus seam, `+/−` fold parentage, the cusp-controlled `S₀→Snew` survivor exchange, deterministic fixed-step replay, Preserve/Forge/Exchange mission predicates, and the separation of simulation from rendering.
+The deterministic suite checks periodic wrap, orientation reversal, one/three preimages, signed cancellation, Chern-number integration, and all missions. It also verifies tutorial event order, the untimed first A decision, the one-use B practice rewind, cached one/three-root risk shading, stable sheet IDs, fold parentage, survivor exchange, and fixed-step replay.
 
-Pure rules live in `src/game.js` and `src/trace-mechanics.js`; `src/trace-game.js` only handles input, sound, effects, and drawing. GitHub Pages deploys the static game from `main` after the tests pass.
+Pure judging rules live in `src/game.js` and `src/trace-mechanics.js`; the separate deterministic tutorial state lives in `src/tutorial.js`. GitHub Pages deploys the static game from `main` after the tests pass.

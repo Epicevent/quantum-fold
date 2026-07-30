@@ -244,6 +244,30 @@ test("a direct Preserve route fails because it enters the three-sheet region", (
   assert.equal(forbiddenCrossing.singularity.locus.dimension, 1);
 });
 
+test("Forge explicitly prompts for the newborn pair after waiting at the goal", () => {
+  const state = createRunnerState();
+  startRunner(state);
+
+  driveRunnerToward(state, { a: -0.012, b: -0.014 });
+  driveRunnerToward(state, { a: -0.012, b: 0.014 });
+  driveRunnerToward(state, { a: 0.04, b: 0.014 });
+  stepUntil(state, () => state.stageIndex === 1, 400);
+  stepUntil(state, () => state.inputLock === 0, 300);
+  for (let frame = 0; frame < 2400 && state.roots.length < 3; frame += 1) {
+    stepRunner(state, { moveX: 1, moveY: 0 });
+  }
+  assert.equal(state.roots.length, 3);
+
+  state.coordinate = { ...state.stages[state.stageIndex].goal };
+  state.velocity = { a: 0, b: 0 };
+  for (let frame = 0; frame < 380; frame += 1) {
+    stepRunner(state, { moveX: 0, moveY: 0 });
+  }
+  assert.ok(state.events.some((event) => event.type === "forge-tag-prompt"));
+  assert.equal(state.stageIndex, 1);
+  assert.equal(state.pairTagged, false);
+});
+
 test("Sheet Runner fixed-step replay and root continuation are deterministic", () => {
   const left = createRunnerState();
   const right = createRunnerState();

@@ -9,6 +9,7 @@ import {
   currentContinuationView,
   drainTraceEvents,
   runnerEvidence,
+  runnerRootCountGrid,
   runnerTarget,
   selectContinuationNode,
   startContinuation,
@@ -24,6 +25,13 @@ import {
   foldBranchesAtU,
   sourceFromBZ,
 } from "./game.js";
+import {
+  continuationTutorialView,
+  createTraceTutorialState,
+  resetTraceTutorial,
+  runnerTutorialView,
+  updateTraceTutorial,
+} from "./tutorial.js";
 
 const canvas = document.querySelector("#trace-canvas");
 const context = canvas.getContext("2d");
@@ -54,6 +62,15 @@ const ui = {
   endTitle: document.querySelector("#end-title"),
   endReceipt: document.querySelector("#end-receipt"),
   sound: document.querySelector("#trace-sound"),
+  commandStep: document.querySelector("#trace-command-step"),
+  commandVerb: document.querySelector("#trace-command-verb"),
+  commandDetail: document.querySelector("#trace-command-detail"),
+  progressLabel: document.querySelector("#trace-progress-label"),
+  progressFill: document.querySelector("#trace-progress-fill"),
+  liveCalculation: document.querySelector(".live-calculation"),
+  arenaPanel: document.querySelector(".trace-arena-panel"),
+  endSummary: document.querySelector("#end-summary"),
+  endDetail: document.querySelector("#end-detail"),
 };
 
 const COLORS = {
@@ -71,6 +88,7 @@ const COLORS = {
 
 let mode = MODE_CONTINUATION;
 let game = createContinuationState();
+let tutorial = createTraceTutorialState(mode);
 let width = 1;
 let height = 1;
 let dpr = 1;
@@ -83,7 +101,11 @@ let audioContext = null;
 const keys = new Set();
 const particles = [];
 const floaters = [];
+const eventQueue = [];
+let eventMessageLeft = 0;
+let lastFailureReason = null;
 const criticalValueCurve = criticalValueCurveNearCusp(160);
+const rootCountGrid = runnerRootCountGrid(38, 38);
 
 function currentStage() {
   if (mode === MODE_CONTINUATION) return currentContinuationView(game)?.scenario ?? null;
@@ -139,16 +161,27 @@ function burst(x, y, color, count = 26, speed = 190) {
 }
 
 function floater(text, color = COLORS.ink, x = width * 0.5, y = height * 0.15) {
-  floaters.push({ text, color, x, y, life: 1.05 });
+  const delay = Math.min(0.44, floaters.length * 0.11);
+  floaters.push({ text, color, x, y, life: 1.05, delay });
 }
 
 function eventMessage(message, kind = "neutral") {
-  ui.event.textContent = message;
-  ui.event.dataset.kind = kind;
+  eventQueue.push({ message, kind });
+}
+
+function pumpEventQueue(dt) {
+  eventMessageLeft = Math.max(0, eventMessageLeft - dt);
+  if (eventMessageLeft > 0 || eventQueue.length === 0) return;
+  const next = eventQueue.shift();
+  ui.event.textContent = next.message;
+  ui.event.dataset.kind = next.kind;
+  eventMessageLeft = 0.9;
 }
 
 function processEvents() {
-  for (const event of drainTraceEvents(game)) {
+  const events = drainTraceEvents(game);
+  updateTraceTutorial(tutorial, game, events);
+  for (const event of events) {
     if (["edge-correct", "runner-pair-correct"].includes(event.type)) {
       tone(240 + (game.combo ?? 0) * 38, 0.11, "square", 0.045, 1.8);
       burst(width * 0.5, height * 0.47, COLORS.positive, 30, 230);
@@ -176,14 +209,34 @@ function processEvents() {
       tone(75, 0.32, "sawtooth", 0.06, 0.45);
       burst(width * 0.5, height * 0.52, COLORS.wrong, 40, 250);
       shake = Math.max(shake, 18);
-      floater("TRACE RECEIPT REJECTED", COLORS.wrong);
-      eventMessage(event.reason ? `Contract failed: ${event.reason}.` : "Time layer lost. The same transition is reloaded.", "wrong");
+      lastFailureReason = event.reason ?? "timeout";
+      floater("ROUTE REJECTED", COLORS.wrong);
+      const failureCopy = {
+        "entered-three-sheet-region": "You crossed amber during PRESERVE. Route around the lobe and keep ROOTS at 1.",
+        "provenance-not-preserved": "The goal was reached by the wrong surviving sheet. Keep the starting ID alive.",
+        "survivor-not-exchanged": "The original sheet survived. Tag S₀⁺ with the − root before leaving through the other arm.",
+        timeout: "Time expired after the first lock. Repeat the same visible action sequence.",
+      };
+      eventMessage(failureCopy[event.reason] ?? "This route did not satisfy the visible contract. Retry the same stage.", "wrong");
+    } else if (event.type === "runner-grace") {
+      tone(180, 0.22, "triangle", 0.045, 1.6);
+      floater("FIRST CROSSING REWOUND", COLORS.fold);
+      eventMessage("Practice rewind: Preserve must go around amber. No integrity was lost.", "fold");
+    } else if (event.type === "forge-tag-prompt") {
+      tone(540, 0.1, "square", 0.035, 1.25);
+      floater("CLICK THE FLASHING PAIR", COLORS.fold);
+      eventMessage("You reached the goal with three roots. Click the two newborn roots before docking.", "fold");
     } else if (["transition-clear", "scenario-clear", "runner-stage-clear"].includes(event.type)) {
       tone(460, 0.18, "triangle", 0.055, 2.1);
       burst(width * 0.5, height * 0.42, COLORS.positive, 72, 330);
       shake = Math.max(shake, 13);
       floater("SIGNED TRACE ACCEPTED", COLORS.positive);
       eventMessage("Every transition is explained; signed multiplicity stayed invariant.", "positive");
+      if (event.type === "transition-clear") {
+        ui.arenaPanel.classList.remove("frame-advance");
+        void ui.arenaPanel.offsetWidth;
+        ui.arenaPanel.classList.add("frame-advance");
+      }
     } else if (event.type === "complete") {
       tone(300, 0.35, "sawtooth", 0.07, 3.4);
       setTimeout(() => tone(620, 0.28, "triangle", 0.05, 1.8), 140);
@@ -424,20 +477,29 @@ function localPoint(coordinate, rect) {
 }
 
 function drawRunner() {
-  const margin = Math.max(18, width * 0.025);
-  const gap = Math.max(22, width * 0.035);
-  const top = 58;
-  const available = height - 102;
-  const domainSize = Math.min(width * 0.57, available);
-  const domainRect = { x: margin, y: top, w: domainSize, h: domainSize };
+  const compact = width < 600;
+  const margin = compact ? 12 : Math.max(18, width * 0.025);
+  const gap = compact ? 10 : Math.max(22, width * 0.035);
+  const top = compact ? 52 : 58;
+  const available = height - (compact ? 88 : 102);
+  const usableWidth = width - margin * 2 - gap;
+  const domainWidth = compact ? usableWidth * 0.4 : Math.min(width * 0.57, available);
+  const domainHeight = compact ? available : domainWidth;
+  const domainRect = { x: margin, y: top, w: domainWidth, h: domainHeight };
   const targetRect = {
     x: domainRect.x + domainRect.w + gap,
     y: top,
-    w: Math.max(160, width - domainRect.x - domainRect.w - gap - margin),
-    h: domainSize,
+    w: compact ? usableWidth - domainWidth : Math.max(160, width - domainRect.x - domainRect.w - gap - margin),
+    h: domainHeight,
   };
-  panel({ x: domainRect.x - 10, y: domainRect.y - 32, w: domainRect.w + 20, h: domainRect.h + 52 }, "SOURCE ROOTS · T² · Σ CURVE + CUSP POINTS");
-  panel({ x: targetRect.x - 10, y: targetRect.y - 32, w: targetRect.w + 20, h: targetRect.h + 52 }, "TARGET STEERING · S² · f(Σ) + CUSP VALUE");
+  panel(
+    { x: domainRect.x - 8, y: domainRect.y - 30, w: domainRect.w + 16, h: domainRect.h + 48 },
+    compact ? "SOURCE ROOTS · T²" : "SOURCE ROOTS · T² · Σ CURVE + CUSP POINTS",
+  );
+  panel(
+    { x: targetRect.x - 8, y: targetRect.y - 30, w: targetRect.w + 16, h: targetRect.h + 48 },
+    compact ? "STEER TARGET · S²" : "TARGET STEERING · S² · f(Σ) + CUSP VALUE",
+  );
   drawDomainGrid(domainRect);
   drawFoldCurve(domainRect);
   drawDomainCuspPoints(domainRect);
@@ -467,6 +529,20 @@ function drawRunner() {
   context.save();
   roundedRect(targetRect, 4);
   context.clip();
+
+  const cellWidth = targetRect.w / rootCountGrid.columns;
+  const cellHeight = targetRect.h / rootCountGrid.rows;
+  for (const cell of rootCountGrid.cells) {
+    if (cell.count !== 3) continue;
+    context.fillStyle = "rgba(255,111,145,.115)";
+    context.fillRect(
+      targetRect.x + cell.column * cellWidth,
+      targetRect.y + (rootCountGrid.rows - cell.row - 1) * cellHeight,
+      cellWidth + 0.6,
+      cellHeight + 0.6,
+    );
+  }
+
   context.strokeStyle = COLORS.grid;
   for (let index = 0; index <= 6; index += 1) {
     const x = targetRect.x + targetRect.w * index / 6;
@@ -527,8 +603,10 @@ function drawRunner() {
   context.fillStyle = "rgba(101,255,226,.12)";
   context.strokeStyle = COLORS.positive;
   context.lineWidth = 2;
+  const goalRadiusX = stage.goalRadius / 0.036 * targetRect.w;
+  const goalRadiusY = stage.goalRadius / 0.09 * targetRect.h;
   context.beginPath();
-  context.arc(goal.x, goal.y, 16, 0, Math.PI * 2);
+  context.ellipse(goal.x, goal.y, goalRadiusX, goalRadiusY, 0, 0, Math.PI * 2);
   context.fill();
   context.stroke();
   context.fillStyle = COLORS.positive;
@@ -553,6 +631,21 @@ function drawRunner() {
   context.strokeRect(targetRect.x, targetRect.y, targetRect.w, targetRect.h);
 
   context.fillStyle = COLORS.muted;
+  context.font = "700 9px ui-monospace, monospace";
+  context.textAlign = "center";
+  context.fillText("B  →", targetRect.x + targetRect.w * 0.5, targetRect.y + targetRect.h + 16);
+  context.save();
+  context.translate(targetRect.x - 14, targetRect.y + targetRect.h * 0.5);
+  context.rotate(-Math.PI / 2);
+  context.fillText("A  →", 0, 0);
+  context.restore();
+
+  context.fillStyle = "rgba(255,111,145,.8)";
+  context.font = "700 8px ui-monospace, monospace";
+  context.textAlign = "right";
+  context.fillText("3 ROOTS", targetRect.x + targetRect.w - 7, targetRect.y + 13);
+
+  context.fillStyle = COLORS.muted;
   context.font = "600 10px ui-monospace, monospace";
   context.textAlign = "center";
   context.fillText("STEER q(A,B) · TAG TWO SOURCE ROOTS TO PREDICT THE FOLD PAIR", width * 0.5, height - 19);
@@ -575,6 +668,10 @@ function drawParticles(dt) {
   particles.splice(0, particles.length, ...particles.filter((particle) => particle.life > 0));
 
   for (const item of floaters) {
+    if (item.delay > 0) {
+      item.delay -= dt;
+      continue;
+    }
     item.life -= dt;
     item.y -= dt * 34;
     context.globalAlpha = Math.max(0, item.life);
@@ -632,26 +729,56 @@ function renderUI() {
   ui.title.textContent = stage.title;
   ui.brief.textContent = stage.brief;
   ui.formulaGeometry.textContent = stage.geometry.statement;
-  ui.score.textContent = String(game.score).padStart(5, "0");
-  ui.combo.textContent = `TRACE COMBO ×${game.combo}`;
+  ui.score.textContent = game.score.toLocaleString("en-US").padStart(5, "0");
+  ui.combo.textContent = `TRACE COMBO · × ${game.combo}`;
   ui.integrity.textContent = "◆".repeat(game.integrity) + "◇".repeat(Math.max(0, 3 - game.integrity));
-  ui.timer.textContent = `${Math.max(0, game.timeLeft).toFixed(1)}s`;
+  ui.timer.textContent = mode === MODE_CONTINUATION && game.solvedEdges.length === 0
+    ? "LEARN"
+    : mode === MODE_RUNNER && game.inputLock > 0
+      ? "READY"
+      : `${Math.max(0, game.timeLeft).toFixed(1)} s`;
   ui.controlsA.hidden = mode !== MODE_CONTINUATION;
   ui.controlsB.hidden = mode !== MODE_RUNNER;
 
   if (mode === MODE_CONTINUATION) {
     const view = currentContinuationView(game);
+    const guide = continuationTutorialView(tutorial, game, view);
+    const pairRequired = view.task.pairIds.length === 2;
+    ui.title.textContent = pairRequired
+      ? view.task.pairLayer === "current"
+        ? "Lock the two roots that just appeared"
+        : "Lock the two roots that will disappear"
+      : "Connect the same root through time";
+    ui.brief.textContent = pairRequired
+      ? `Click the ${view.task.pairIds.join(" and ")} pair on the ${view.task.pairLayer === "current" ? "right" : "left"} panel.`
+      : "Choose a label on the left, then fire at the same label on the right.";
+    const transitionTotal = view.scenario.frames.length - 1;
+    ui.commandStep.textContent = `${stage.number} · TRANSITION ${game.transitionIndex} / ${transitionTotal}`;
+    ui.commandVerb.textContent = guide.command;
+    ui.commandDetail.textContent = guide.detail;
+    ui.progressLabel.textContent = `${guide.progress.done} / ${guide.progress.total} LOCKS`;
+    ui.progressFill.style.width = `${guide.progress.total ? guide.progress.done / guide.progress.total * 100 : 100}%`;
     ui.formulaTarget.textContent = `${stage.formula} · ${formatVector(view.current.target)}`;
     ui.formulaRoots.textContent = `roots ${view.previous.roots.length}→${view.current.roots.length} · continue ${view.task.shared.join(",") || "none"} · pair ${view.task.pairIds.join("+") || "none"}`;
     ui.formulaSigned.textContent = `Σ sgn λ̄ = ${view.previous.signedMultiplicity} → ${view.current.signedMultiplicity}`;
     renderLedger(view.current.roots);
   } else {
+    const guide = runnerTutorialView(tutorial, game);
+    ui.commandStep.textContent = `${stage.number} · ${stage.kicker} · ROOTS ${game.roots.length}`;
+    ui.commandVerb.textContent = guide.command;
+    ui.commandDetail.textContent = guide.detail;
+    ui.progressLabel.textContent = `${game.receipts.length} / ${game.stages.length} ROUTES`;
+    ui.progressFill.style.width = `${game.receipts.length / game.stages.length * 100}%`;
     const target = runnerTarget(game);
     ui.formulaTarget.textContent = `q(A,B)=normalize(qc+A eA+B eB) · A=${game.coordinate.a.toFixed(4)} · B=${game.coordinate.b.toFixed(4)} · ${formatVector(target)}`;
     ui.formulaRoots.textContent = `roots ${game.roots.length} · IDs ${game.roots.map((root) => root.id).join(", ")} · initial ${game.initialId}`;
     ui.formulaSigned.textContent = `Σ sgn λ̄ = ${signedMultiplicity()} · pair tag ${game.pairTagged ? "LOCKED" : "OPEN"}`;
     renderLedger(game.roots);
   }
+  const calculationRevealed = mode === MODE_CONTINUATION
+    ? tutorial.firstActionSeen
+    : game.everTriple || game.receipts.length > 0;
+  ui.liveCalculation.classList.toggle("trace-hud-concealed", !calculationRevealed);
   renderReceipt();
 
   document.querySelectorAll("[data-mode-button]").forEach((button) => {
@@ -666,6 +793,27 @@ function showEnd() {
   const complete = game.status === "complete";
   ui.endKicker.textContent = complete ? "GLOBAL TRACE ACCEPTED" : "TRACE CONTRACT FAILED";
   ui.endTitle.innerHTML = complete ? "THE ROOTS KEPT<br><em>THEIR HISTORY.</em>" : "THE FINAL NUMBER<br><em>WAS NOT ENOUGH.</em>";
+  if (mode === MODE_CONTINUATION) {
+    ui.endSummary.textContent = complete
+      ? "You linked every surviving ID and locked every born or dying +/− pair."
+      : "A transition remained unexplained when integrity ran out.";
+    ui.endDetail.textContent = complete
+      ? "The beams record which sheet survived—information the root count 1→3→1 cannot contain."
+      : "Retry: click one root on the left, then the same ID on the right; lock a fold pair only on one panel.";
+  } else {
+    ui.endSummary.textContent = complete
+      ? "You avoided, entered, and exited the three-root region under three different contracts."
+      : "The last route did not produce the required survivor.";
+    const retryCopy = {
+      "entered-three-sheet-region": "Preserve must route around the shaded three-root region.",
+      "provenance-not-preserved": "Reach the goal while keeping the starting root ID alive.",
+      "survivor-not-exchanged": "Inside three roots, tag S₀⁺ with the negative root before exiting the other arm.",
+      timeout: "Follow the command bar and reach the visible goal before time expires.",
+    };
+    ui.endDetail.textContent = complete
+      ? "The displayed receipt proves which ID survived; signed multiplicity remained +1 throughout."
+      : retryCopy[lastFailureReason] ?? "Retry the visible stage contract.";
+  }
   const evidence = mode === MODE_CONTINUATION ? continuationEvidence(game) : runnerEvidence(game);
   ui.endReceipt.textContent = JSON.stringify(evidence, null, 2);
 }
@@ -695,6 +843,7 @@ function update(dt) {
   if (mode === MODE_CONTINUATION) stepContinuation(game, dt);
   else stepRunner(game, inputForRunner(), dt);
   processEvents();
+  pumpEventQueue(dt);
 }
 
 function frame(now) {
@@ -713,13 +862,21 @@ function frame(now) {
 function begin(nextMode) {
   mode = nextMode;
   game = mode === MODE_RUNNER ? createRunnerState() : createContinuationState();
+  resetTraceTutorial(tutorial, mode);
+  keys.clear();
+  for (const direction of ["Left", "Right", "Up", "Down"]) document.body.dataset[`touch${direction}`] = "false";
+  particles.length = 0;
+  floaters.length = 0;
+  eventQueue.length = 0;
+  eventMessageLeft = 0;
+  lastFailureReason = null;
   if (mode === MODE_RUNNER) startRunner(game);
   else startContinuation(game);
   ui.overlay.hidden = true;
   ui.end.hidden = true;
   eventMessage(mode === MODE_CONTINUATION
-    ? "Build f⁻¹(γ): connect identities, then lock fold pairs."
-    : "Steer q(A,B). The source roots move because the target moved.");
+    ? "Click a root on the left, then click the same label on the right."
+    : "Move the white target with WASD or arrows and reach the visible goal ring.");
   ensureAudio();
 }
 
@@ -746,7 +903,10 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => keys.delete(event.code));
-window.addEventListener("blur", () => keys.clear());
+window.addEventListener("blur", () => {
+  keys.clear();
+  for (const direction of ["Left", "Right", "Up", "Down"]) document.body.dataset[`touch${direction}`] = "false";
+});
 window.addEventListener("resize", resizeCanvas);
 
 document.querySelectorAll("[data-start-mode], [data-mode-button]").forEach((button) => {

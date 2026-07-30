@@ -728,10 +728,10 @@ test("the trace page exposes two distinct global T2 to S2 game contracts", () =>
   for (const requiredText of [
     "CONTINUATION STRIKE",
     "SHEET RUNNER",
-    "q(θ)=(sinθ,0,−cosθ)",
-    "B⁺+C⁻→0 at θ=30°",
-    "q(A,B)=normalize(qc+A eA+B eB)",
-    "S₀⁺→{S₀⁺,Snew⁺,S⁻}→Snew⁺",
+    "CLICK ANY ROOT ON THE LEFT",
+    "CLICK LEFT · CLICK MATCHING RIGHT",
+    "STEER TARGET · WATCH ROOT COUNT",
+    "No formulas are required to start",
     "The receipt records lineage, not only the final count",
     "tag the predicted birth/death pair",
   ]) {
@@ -741,6 +741,7 @@ test("the trace page exposes two distinct global T2 to S2 game contracts", () =>
   assert.ok(renderer.includes("drawRunner"));
   assert.ok(renderer.includes("selectContinuationNode"));
   assert.ok(renderer.includes("tagRunnerRoot"));
+  assert.doesNotMatch(shooter, /class="start-math"/);
   assert.ok(philosophy.includes("게임이 세는 것은 교점 수가 아니라, 움직이는 원상의 부호 있는 계보다"));
   assert.ok(philosophy.includes("root count ≠ answer"));
 });

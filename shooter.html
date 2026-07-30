@@ -43,6 +43,18 @@
         </div>
       </section>
 
+      <section class="trace-command" id="trace-command" aria-live="assertive">
+        <div>
+          <small id="trace-command-step">A1 · TRANSITION 1</small>
+          <strong id="trace-command-verb">CLICK ANY ROOT ON THE LEFT</strong>
+          <span id="trace-command-detail">Then click the same ID on the right to fire a continuation beam.</span>
+        </div>
+        <div class="trace-progress" aria-label="Current transition progress">
+          <span id="trace-progress-label">0 / 3 LOCKS</span>
+          <i><b id="trace-progress-fill"></b></i>
+        </div>
+      </section>
+
       <section class="live-calculation" aria-label="Live T squared to S squared calculation">
         <div>
           <small>TARGET PATH · WHAT MOVES ON S²</small>
@@ -115,32 +127,30 @@
 
     <div class="trace-start" id="trace-start">
       <div class="start-header">
-        <p>THE CALCULATION IS THE MOVING PREIMAGE</p>
-        <h2>TWO GAMES.<br><em>ONE ACTUAL MAP.</em></h2>
-        <span>Both use the paper's lower-band map <code>f:T²→S²</code>. They ask different questions.</span>
+        <p>PICK ONE VERB · LEARN BY DOING IT</p>
+        <h2>TWO GAMES.<br><em>TWO CLEAR MOVES.</em></h2>
+        <span>No formulas are required to start. The calculation appears only after your action makes it visible.</span>
       </div>
       <div class="mode-cards">
         <article>
-          <small>A · DATA ASSOCIATION SHOOTER</small>
+          <small>A · MATCH THROUGH TIME</small>
           <h3>CONTINUATION<br>STRIKE</h3>
-          <p>The target path is fixed. Fire continuation beams between the same source sheet across time. At an ordinary point of the 1D curve <code>Σ</code>, lock the real <code>+/−</code> birth or death pair.</p>
-          <div class="start-math">
-            <code>q(θ)=(sinθ,0,−cosθ)</code>
-            <code>3tanθ·t²−2t+tanθ=0</code>
-            <code>B⁺+C⁻→0 at θ=30°</code>
+          <p>Two snapshots sit side by side. Connect the same labeled root from left to right. If two roots appear or vanish together, click that pair on one side.</p>
+          <div class="mode-demo" aria-hidden="true">
+            <span><i>S0</i><b>→</b><i>S0</i></span>
+            <em>SAME ID · FIRE THE BEAM</em>
           </div>
-          <button type="button" data-start-mode="continuation"><b>PLAY A</b><span>TRACE WHO BECOMES WHOM</span></button>
+          <button type="button" data-start-mode="continuation"><b>PLAY A</b><span>CLICK LEFT · CLICK MATCHING RIGHT</span></button>
         </article>
         <article>
-          <small>B · SHEET RUNNER · PATH-CONTROL SHOOTER</small>
+          <small>B · SHEET RUNNER · STEER THE WHITE TARGET</small>
           <h3>SHEET<br>RUNNER</h3>
-          <p>You steer the target on S². Avoid or cross the two ordinary arms of <code>f(Σ)</code> near its cusp value; the path does not hit the cusp point itself.</p>
-          <div class="start-math">
-            <code>q(A,B)=normalize(qc+A eA+B eB)</code>
-            <code>S₀⁺→{S₀⁺,Snew⁺,S⁻}→Snew⁺</code>
-            <code>degree stays +1</code>
+          <p>Move the white target to the goal ring. Amber boundaries change one root into three. Each stage tells you whether to avoid, enter, or leave that region.</p>
+          <div class="mode-demo runner-demo" aria-hidden="true">
+            <span><i>●</i><b>⇢</b><i>◎</i></span>
+            <em>WASD · REACH THE GOAL RING</em>
           </div>
-          <button type="button" data-start-mode="runner"><b>PLAY B</b><span>CHOOSE WHICH SHEET SURVIVES</span></button>
+          <button type="button" data-start-mode="runner"><b>PLAY B</b><span>STEER TARGET · WATCH ROOT COUNT</span></button>
         </article>
       </div>
       <a href="./index.html">KEEP PLAYING THE ORIGINAL TORUS MODE →</a>
@@ -149,7 +159,12 @@
     <div class="trace-end" id="trace-end" hidden>
       <small id="end-kicker">GLOBAL TRACE ACCEPTED</small>
       <h2 id="end-title">THE ROOTS KEPT<br><em>THEIR HISTORY.</em></h2>
-      <pre id="end-receipt"></pre>
+      <p id="end-summary">You preserved the identity of every surviving sheet.</p>
+      <p id="end-detail">The signed count stayed +1 through every fold event.</p>
+      <details>
+        <summary>SHOW TECHNICAL RECEIPT</summary>
+        <pre id="end-receipt"></pre>
+      </details>
       <div>
         <button type="button" id="trace-retry">RUN THIS MODE AGAIN</button>
         <button type="button" id="trace-choose">CHOOSE A / B</button>

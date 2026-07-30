@@ -16,6 +16,12 @@ import {
   stepMission,
 } from "./game.js";
 import { SINGULARITY_IDS } from "./singularity-types.js";
+import {
+  createTorusTutorialState,
+  resetTorusTutorial,
+  torusTutorialView,
+  updateTorusTutorial,
+} from "./tutorial.js";
 
 const missions = makeMissions();
 
@@ -75,6 +81,18 @@ const ui = {
   liveBlochPoint: document.querySelector("#live-bloch-point"),
   liveCellCard: document.querySelector("#live-cell-card"),
   liveCellContribution: document.querySelector("#live-cell-contribution"),
+  telemetry: document.querySelector("#telemetry"),
+  liveCorrespondence: document.querySelector("#live-correspondence"),
+  coverage: document.querySelector("#coverage"),
+  tutorialStep: document.querySelector("#tutorial-step"),
+  tutorialVerb: document.querySelector("#tutorial-verb"),
+  tutorialDetail: document.querySelector("#tutorial-detail"),
+  signBank: document.querySelector("#sign-bank"),
+  signBankValue: document.querySelector("#sign-bank-value"),
+  impactFeedback: document.querySelector("#impact-feedback"),
+  impactSign: document.querySelector("#impact-sign"),
+  impactTitle: document.querySelector("#impact-title"),
+  impactDetail: document.querySelector("#impact-detail"),
 };
 
 const FIELD_EFFECT_COPY = {
@@ -118,6 +136,8 @@ let startedExperience = false;
 let pulseQueued = false;
 let overlayTimer = null;
 let lastStatus = game.status;
+let tutorial = createTorusTutorialState(game.mission.id);
+const visualBursts = [];
 
 const camera = {
   yaw: -0.34,
@@ -348,10 +368,10 @@ function drawFoldDomain(context, width, height, time) {
 
 function gateVisibility(gate, index) {
   if (game.collected.includes(gate.id)) return 0.2;
-  if (game.mission.ordered && index > game.nextGate) return 0.12;
+  if (game.mission.ordered && index > game.nextGate) return 0.55;
   if (gate.kind === "source") return 1;
-  if (gate.kind === "echo") return 0.18 + game.pulse * 0.82;
-  return game.pulse > 0 ? 0.16 + game.pulse * 0.48 : 0;
+  if (gate.kind === "echo") return 0.58 + game.pulse * 0.42;
+  return 0.58 + game.pulse * 0.3;
 }
 
 function drawDomainGate(context, gate, index, width, height, time) {
@@ -386,6 +406,80 @@ function drawDomainGate(context, gate, index, width, height, time) {
   context.shadowBlur = 0;
   context.fillText(collected ? "✓" : String(index + 1).padStart(2, "0"), 0, 0);
   context.restore();
+}
+
+function activeTargetGate() {
+  if (game.mission.ordered) return game.mission.gates[game.nextGate] ?? null;
+  const candidates = game.mission.gates.filter((gate) => !game.collected.includes(gate.id));
+  return candidates.sort((a, b) => periodicDistance(game.source, a) - periodicDistance(game.source, b))[0] ?? null;
+}
+
+function drawTargetCompass(context, width, height, time) {
+  const gate = activeTargetGate();
+  if (!gate) return;
+  const player = domainPoint(game.source, width, height);
+  const du = signedPeriodicDelta(game.source.u, gate.u);
+  const dv = signedPeriodicDelta(game.source.v, gate.v);
+  const magnitude = Math.hypot(du, dv);
+  if (magnitude < 0.02) return;
+  const angle = Math.atan2(dv, du);
+  const radius = Math.min(width, height) * 0.095;
+  const x = player.x + Math.cos(angle) * radius;
+  const y = player.y + Math.sin(angle) * radius;
+  context.save();
+  context.translate(x, y);
+  context.rotate(angle + Math.PI / 2);
+  context.fillStyle = `rgba(255,201,107,${0.78 + Math.sin(time * 0.008) * 0.18})`;
+  context.shadowColor = "#ffc96b";
+  context.shadowBlur = 12;
+  context.beginPath();
+  context.moveTo(0, -8);
+  context.lineTo(6, 6);
+  context.lineTo(-6, 6);
+  context.closePath();
+  context.fill();
+  context.restore();
+  context.save();
+  context.fillStyle = "#ffc96b";
+  context.font = "700 8px monospace";
+  context.textAlign = "center";
+  context.fillText(`${String(game.mission.gates.indexOf(gate) + 1).padStart(2, "0")} · ${Math.round(magnitude * 100)}%`, x, y + 18);
+  context.restore();
+}
+
+function drawDomainBearings(context, width, height) {
+  if (game.mission.id !== "echo" || game.pulse <= 0) return;
+  const player = domainPoint(game.source, width, height);
+  context.save();
+  context.setLineDash([4, 6]);
+  context.lineWidth = 1;
+  for (const gate of game.mission.gates) {
+    if (game.collected.includes(gate.id)) continue;
+    const point = domainPoint(gate, width, height);
+    context.strokeStyle = `rgba(101,255,226,${0.18 + game.pulse * 0.48})`;
+    context.beginPath();
+    context.moveTo(player.x, player.y);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawDomainBursts(context, width, height) {
+  for (const effect of visualBursts) {
+    const point = domainPoint(effect.source, width, height);
+    const progress = 1 - effect.life / 0.25;
+    context.save();
+    context.globalAlpha = Math.max(0, effect.life / 0.25);
+    context.strokeStyle = effect.sign < 0 ? "#ff6f91" : "#65ffe2";
+    context.lineWidth = 3 - progress * 1.5;
+    context.shadowColor = context.strokeStyle;
+    context.shadowBlur = 18;
+    context.beginPath();
+    context.arc(point.x, point.y, 10 + progress * 46, 0, TAU);
+    context.stroke();
+    context.restore();
+  }
 }
 
 function drawDomainTrail(context, width, height) {
@@ -527,7 +621,10 @@ function drawDomain(time) {
   game.mission.gates.forEach((gate, index) => {
     drawDomainGate(context, gate, index, width, height, time);
   });
+  drawDomainBearings(context, width, height);
+  drawTargetCompass(context, width, height, time);
   drawDomainPlayer(context, width, height, time);
+  drawDomainBursts(context, width, height);
   context.restore();
 
   context.save();
@@ -703,7 +800,7 @@ function drawStateTrail(context, width, height) {
 function drawStateGate(context, gate, index, width, height, time) {
   const collected = game.collected.includes(gate.id);
   const active = !game.mission.ordered || index === game.nextGate;
-  const alpha = collected ? 0.22 : (active ? 1 : 0.18);
+  const alpha = collected ? 0.22 : (active ? 1 : 0.55);
   const point = projectState({ x: gate.stateX, y: gate.stateY, z: gate.stateZ }, width, height);
   const scale = Math.max(0.72, 1 + point.depth * 0.11);
   const color = gate.requiredOrientation < 0 ? "#ff6f91" : "#65ffe2";
@@ -733,6 +830,23 @@ function drawStateGate(context, gate, index, width, height, time) {
   context.textBaseline = "middle";
   context.fillText(collected ? "✓" : String(index + 1).padStart(2, "0"), 0, 0);
   context.restore();
+}
+
+function drawStateBursts(context, width, height) {
+  for (const effect of visualBursts) {
+    const point = projectState(effect.mapped, width, height);
+    const progress = 1 - effect.life / 0.25;
+    context.save();
+    context.globalAlpha = Math.max(0, effect.life / 0.25);
+    context.strokeStyle = effect.sign < 0 ? "#ff6f91" : "#65ffe2";
+    context.lineWidth = 3 - progress * 1.5;
+    context.shadowColor = context.strokeStyle;
+    context.shadowBlur = 18;
+    context.beginPath();
+    context.arc(point.x, point.y, 10 + progress * 42, 0, TAU);
+    context.stroke();
+    context.restore();
+  }
 }
 
 function drawCoverageStamps(context, width, height, time) {
@@ -825,6 +939,7 @@ function drawSurface(time) {
     drawStateGate(context, gate, index, width, height, time);
   });
   drawMappedPlayer(context, width, height, time);
+  drawStateBursts(context, width, height);
 }
 
 function formatSigned(value, precision = 0) {
@@ -915,6 +1030,40 @@ function updateTelemetry() {
     ui.coverageMessage.textContent = "More packets were visited, but opposite signs cancelled.";
   } else {
     ui.coverageMessage.textContent = "Every collected packet currently has the same sign.";
+  }
+  renderTutorial();
+}
+
+function renderTutorial() {
+  const view = torusTutorialView(tutorial, game);
+  document.body.dataset.tutorialPhase = startedExperience ? view.phase : "splash";
+  ui.tutorialStep.textContent = view.step;
+  ui.tutorialVerb.textContent = view.command;
+  ui.tutorialDetail.textContent = view.detail;
+  ui.signBankValue.textContent = view.bankedSigns.length
+    ? view.bankedSigns.map((sign) => sign > 0 ? "+" : "−").join("  ")
+    : "EMPTY";
+
+  for (const element of document.querySelectorAll("[data-hud]")) {
+    const key = element.dataset.hud;
+    const visible = key === "timer"
+      ? game.remaining !== null
+      : Boolean(view.reveal[key]);
+    element.classList.toggle("hud-concealed", !visible);
+  }
+  ui.liveCorrespondence.classList.toggle("hud-concealed", !view.reveal.correspondence);
+  ui.coverage.classList.toggle("hud-concealed", !view.reveal.packet);
+  ui.fieldEffectCard.classList.toggle("hud-concealed", !view.reveal.fieldEffect);
+  ui.cameraButton.hidden = !view.reveal.camera;
+
+  const feedback = view.feedback;
+  ui.impactFeedback.hidden = !feedback;
+  if (feedback) {
+    const sign = feedback.sign ?? (feedback.type === "wrap" ? 1 : 0);
+    ui.impactFeedback.dataset.kind = sign < 0 ? "negative" : "positive";
+    ui.impactSign.textContent = feedback.sign ? (feedback.sign > 0 ? "+" : "−") : "◎";
+    ui.impactTitle.textContent = feedback.title;
+    ui.impactDetail.textContent = feedback.detail;
   }
 }
 
@@ -1019,6 +1168,7 @@ function showEvidence() {
 function setMission(index) {
   if (overlayTimer) window.clearTimeout(overlayTimer);
   game = createMissionState(index, missions);
+  resetTorusTutorial(tutorial, game.mission.id);
   accumulated = 0;
   lastStatus = game.status;
   ui.evidenceOverlay.hidden = true;
@@ -1029,6 +1179,7 @@ function startExperience() {
   if (startedExperience) return;
   startedExperience = true;
   ui.startScreen.classList.add("dismissed");
+  renderTutorial();
   sound.ensure();
   sound.chord([261.63, 392, 523.25], 0.075);
   domainCanvas.focus?.();
@@ -1075,14 +1226,30 @@ function currentInput() {
   return { x, y, pulse };
 }
 
-function handleGameEvents(events) {
-  for (const event of events) sound.event(event);
+function handleGameEvents(events, dt) {
+  updateTorusTutorial(tutorial, game, events, dt);
+  for (const event of events) {
+    sound.event(event);
+    if (["collect", "orientation", "wrap"].includes(event.type)) {
+      visualBursts.push({
+        life: 0.25,
+        source: { u: game.source.u, v: game.source.v },
+        mapped: { ...game.mapped },
+        sign: event.sign ?? event.orientation ?? game.orientation,
+      });
+    }
+    if (event.type === "orientation") {
+      ui.orientationCard.classList.remove("orientation-flash");
+      void ui.orientationCard.offsetWidth;
+      ui.orientationCard.classList.add("orientation-flash");
+    }
+  }
 }
 
 function simulate(dt) {
   const input = currentInput();
   stepMission(game, input, dt);
-  handleGameEvents(game.events);
+  handleGameEvents(game.events, dt);
   if (game.status !== lastStatus) {
     lastStatus = game.status;
     if (game.status === "complete" || game.status === "failed") {
@@ -1104,6 +1271,8 @@ function frame(time) {
 
   camera.yaw += (camera.targetYaw - camera.yaw) * 0.09;
   camera.pitch += (camera.targetPitch - camera.pitch) * 0.09;
+  for (const effect of visualBursts) effect.life -= delta;
+  visualBursts.splice(0, visualBursts.length, ...visualBursts.filter((effect) => effect.life > 0));
   drawDomain(time);
   drawSurface(time);
   updateTelemetry();
@@ -1184,6 +1353,7 @@ for (const button of document.querySelectorAll("[data-direction]")) {
 }
 
 surfaceCanvas.addEventListener("pointerdown", (event) => {
+  if (game.mission.id !== "free" || window.matchMedia("(max-width: 940px)").matches) return;
   camera.dragging = true;
   camera.pointerX = event.clientX;
   camera.pointerY = event.clientY;

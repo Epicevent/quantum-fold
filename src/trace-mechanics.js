@@ -429,6 +429,8 @@ export function stepContinuation(state, dt = TRACE_STEP) {
     if (state.advanceDelay <= 0) advanceContinuation(state);
     return state;
   }
+  // The first successful beam teaches the verb before the clock becomes a threat.
+  if (state.solvedEdges.length === 0) return state;
   state.timeLeft -= dt;
   if (state.timeLeft <= 0) {
     state.integrity -= 1;
@@ -549,6 +551,11 @@ function initializeRunnerStage(state) {
   state.lastDiedPair = [];
   state.singularEncounters = [];
   state.everTriple = false;
+  state.inputLock = 1.5;
+  state.graceAvailable = stage.id === "preserve";
+  state.lastSafeCoordinate = { ...stage.start };
+  state.forgeGoalWait = 0;
+  state.forgePromptShown = false;
   state.timeLeft = stage.time;
   state.stageDelay = null;
   state.history = [{
@@ -579,6 +586,11 @@ export function createRunnerState() {
     lastBornPair: [],
     lastDiedPair: [],
     everTriple: false,
+    inputLock: 1.5,
+    graceAvailable: true,
+    lastSafeCoordinate: { a: 0.04, b: -0.014 },
+    forgeGoalWait: 0,
+    forgePromptShown: false,
     timeLeft: 34,
     stageDelay: null,
     history: [],
@@ -605,6 +617,28 @@ function failRunnerStage(state, reason) {
   state.stageDelay = 1.05;
   state.events.push({ type: "runner-fail", reason, integrity: state.integrity });
   if (state.integrity <= 0) state.status = "failed";
+}
+
+function restorePreserveGrace(state) {
+  state.coordinate = { ...state.lastSafeCoordinate };
+  state.velocity = { a: 0, b: 0 };
+  const restored = firstRoots(cuspTarget(state.coordinate.a, state.coordinate.b), 192);
+  state.roots = restored.roots;
+  state.nextId = restored.nextId;
+  state.initialId = state.roots[0]?.id ?? state.initialId;
+  state.selectedRoots = [];
+  state.pairTagged = false;
+  state.lastBornPair = [];
+  state.lastDiedPair = [];
+  state.singularEncounters = [];
+  state.everTriple = false;
+  state.inputLock = 1.5;
+  state.graceAvailable = false;
+  state.events.push({
+    type: "runner-grace",
+    reason: "entered-three-sheet-region",
+    coordinate: { ...state.coordinate },
+  });
 }
 
 function runnerExpectedPair(state) {
@@ -704,13 +738,20 @@ function clearRunnerStage(state) {
   state.stageDelay = 1.1;
 }
 
-function evaluateRunnerStage(state) {
+function evaluateRunnerStage(state, dt) {
   const stage = state.stages[state.stageIndex];
   if (stage.id === "preserve" && state.roots.length > 1) {
+    if (state.graceAvailable) {
+      restorePreserveGrace(state);
+      return;
+    }
     failRunnerStage(state, "entered-three-sheet-region");
     return;
   }
-  if (!runnerGoalReached(state)) return;
+  if (!runnerGoalReached(state)) {
+    state.forgeGoalWait = 0;
+    return;
+  }
 
   if (stage.id === "preserve") {
     if (!state.everTriple && state.roots.length === 1 && state.roots[0].id === state.initialId) {
@@ -724,6 +765,12 @@ function evaluateRunnerStage(state) {
   if (stage.id === "forge") {
     if (state.roots.length === 3 && state.everTriple && state.pairTagged) {
       clearRunnerStage(state);
+    } else if (state.roots.length === 3 && !state.pairTagged) {
+      state.forgeGoalWait += dt;
+      if (state.forgeGoalWait >= 3 && !state.forgePromptShown) {
+        state.forgePromptShown = true;
+        state.events.push({ type: "forge-tag-prompt", ids: [...state.lastBornPair] });
+      }
     }
     return;
   }
@@ -783,6 +830,15 @@ export function stepRunner(state, input, dt = TRACE_STEP) {
     return state;
   }
 
+  if (state.inputLock > 0) {
+    state.inputLock = Math.max(0, state.inputLock - dt);
+    return state;
+  }
+
+  if (state.stages[state.stageIndex].id === "preserve" && state.roots.length === 1) {
+    state.lastSafeCoordinate = { ...state.coordinate };
+  }
+
   const moveX = clamp(input.moveX ?? 0, -1, 1);
   const moveY = clamp(input.moveY ?? 0, -1, 1);
   const response = 1 - Math.exp(-12 * dt);
@@ -793,7 +849,7 @@ export function stepRunner(state, input, dt = TRACE_STEP) {
   state.timeLeft -= dt;
   updateRunnerRoots(state);
   recordRunnerHistory(state, dt);
-  evaluateRunnerStage(state);
+  evaluateRunnerStage(state, dt);
   if (state.timeLeft <= 0) failRunnerStage(state, "timeout");
   return state;
 }
@@ -810,6 +866,8 @@ export function runnerEvidence(state) {
     initialId: state.initialId,
     everTriple: state.everTriple,
     pairTagged: state.pairTagged,
+    inputLock: rounded(state.inputLock, 6),
+    graceAvailable: state.graceAvailable,
     score: state.score,
     integrity: state.integrity,
     timeLeft: rounded(state.timeLeft, 6),
@@ -870,6 +928,24 @@ export function rawMultiplicityAt(a, b) {
     signs: roots.map((root) => root.sign),
     signed: roots.reduce((sum, root) => sum + root.sign, 0),
   };
+}
+
+const runnerRootGridCache = new Map();
+
+export function runnerRootCountGrid(columns = 42, rows = 42) {
+  const key = `${columns}x${rows}`;
+  if (runnerRootGridCache.has(key)) return runnerRootGridCache.get(key);
+  const cells = [];
+  for (let row = 0; row < rows; row += 1) {
+    const a = -0.018 + ((row + 0.5) / rows) * 0.09;
+    for (let column = 0; column < columns; column += 1) {
+      const b = -0.018 + ((column + 0.5) / columns) * 0.036;
+      cells.push({ column, row, a, b, count: rawMultiplicityAt(a, b).count });
+    }
+  }
+  const grid = Object.freeze({ columns, rows, cells: Object.freeze(cells) });
+  runnerRootGridCache.set(key, grid);
+  return grid;
 }
 
 export function meridianClosedFormRoots(degrees) {

@@ -404,7 +404,7 @@ export function makeMissions() {
       timeLimit: null,
       targetCharge: null,
       gates: [
-        gateFromSource("seam-1", "Relay 1", { u: 0.04, v: 0.2 }),
+        gateFromSource("seam-1", "Relay 1", { u: 0.04, v: 0.2 }, { radius: 0.018 }),
         gateFromSource("seam-2", "Relay 2", { u: 0.12, v: 0.8 }),
         gateFromSource("seam-3", "Relay 3", { u: 0.88, v: 0.82 }),
         gateFromSource("seam-4", "Relay 4", { u: 0.72, v: 0.34 }),
