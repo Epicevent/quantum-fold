@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#061019">
+    <meta
+      name="description"
+      content="A calculation shooter for the CP1 Fubini-Study metric, Berry curvature, Ricci form, first Chern classes, pullback to the paper's torus map, and fold regularization."
+    >
+    <title>Curvature Forge — Quantum Fold</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./curvature.css">
+  </head>
+  <body data-mission="patch" data-status="ready">
+    <div class="forge-noise" aria-hidden="true"></div>
+
+    <main class="forge-app" id="forge-app">
+      <header class="forge-topbar">
+        <a class="forge-brand" href="./index.html" aria-label="Return to Quantum Fold">
+          <span aria-hidden="true">∂</span>
+          <strong>QUANTUM FOLD</strong>
+          <small>CURVATURE FORGE</small>
+        </a>
+        <nav aria-label="Pages">
+          <a href="./index.html">TORUS</a>
+          <a href="./shooter.html">TRACE A/B</a>
+          <a href="./map-lab.html">CUSP LAB</a>
+          <a href="./philosophy.html">SPEC</a>
+          <button id="sound-button" type="button" aria-pressed="true">SOUND ON</button>
+        </nav>
+      </header>
+
+      <section class="forge-directive" aria-live="polite">
+        <div class="mission-lockup">
+          <span id="mission-number">01</span>
+          <div>
+            <small id="mission-kicker">CP¹ PATCH · BUILD THE METRIC</small>
+            <h1 id="mission-title">Differentiate the object you already computed</h1>
+            <p id="mission-brief">At z=1, carry log S through two complex derivatives.</p>
+          </div>
+        </div>
+        <div class="run-state">
+          <div><small>SCORE</small><strong id="score-value">00000</strong></div>
+          <div><small>PROOF INTEGRITY</small><strong id="integrity-value">100%</strong></div>
+          <div><small>COMBO</small><strong id="combo-value">×0</strong></div>
+        </div>
+      </section>
+
+      <section class="campaign-progress" aria-label="Campaign progress">
+        <div id="mission-rail" class="mission-rail"></div>
+        <div class="progress-track"><i id="progress-fill"></i></div>
+        <span id="progress-label">0 / 22</span>
+      </section>
+
+      <section class="bundle-board" aria-label="Two curvature lanes">
+        <article data-lane="berry">
+          <span class="bundle-symbol">L</span>
+          <div>
+            <small>EIGENLINE CONNECTION</small>
+            <b>Berry curvature <i>F<sub>B</sub></i></b>
+            <code>[F<sub>B</sub>/2π] = c₁(L)</code>
+          </div>
+          <strong id="berry-charge">?</strong>
+        </article>
+        <div class="factor-gate" id="factor-gate"><span>×2</span><small>CP¹ TANGENT</small></div>
+        <article data-lane="ricci">
+          <span class="bundle-symbol">T</span>
+          <div>
+            <small>HOLOMORPHIC TANGENT BUNDLE</small>
+            <b>Ricci form <i>ρ</i></b>
+            <code>[ρ/2π] = c₁(TCP¹)</code>
+          </div>
+          <strong id="ricci-charge">?</strong>
+        </article>
+      </section>
+
+      <section class="forge-layout">
+        <article class="arena-panel">
+          <header class="panel-heading">
+            <span><i></i> LIVE CALCULATION</span>
+            <small>CLICK A TARGET · OR PRESS 1 / 2 / 3</small>
+          </header>
+          <div class="arena-shell">
+            <canvas id="forge-canvas" aria-label="Reactive calculation arena showing the current metric and curvature stage"></canvas>
+            <div class="question-stack" id="question-stack">
+              <span class="operator-label" id="operator-label">CALCULATION 1 / 4</span>
+              <code class="before-formula" id="before-formula">z=1, S=1+|z|²</code>
+              <h2 id="question-prompt">What number enters every denominator?</h2>
+              <div class="answer-grid" id="answer-grid" aria-label="Answer targets"></div>
+              <p class="impact-message" id="impact-message" aria-live="assertive"></p>
+            </div>
+
+            <div class="mission-clear" id="mission-clear" hidden>
+              <small>CALCULATION BLOCK SEALED</small>
+              <h2 id="clear-formula">g<sub>z z̄</sub>(1)=1/4</h2>
+              <p id="clear-reason">The CP¹ metric coefficient is now available to both curvature lanes.</p>
+              <button id="next-mission" type="button">NEXT CALCULATION</button>
+            </div>
+          </div>
+          <footer class="arena-footer">
+            <span><b>RULE</b> Every shot must make the next equality true.</span>
+            <span id="current-convention">S=1+|z|² · ∂z=½(∂x−i∂y)</span>
+          </footer>
+        </article>
+
+        <aside class="audit-panel">
+          <header class="panel-heading">
+            <span><i></i> CALCULATION RECEIPT</span>
+            <small id="receipt-count">0 LINES VERIFIED</small>
+          </header>
+          <div class="receipt" id="receipt">
+            <p class="receipt-empty">Correct hits will leave the exact equality and why it is valid.</p>
+          </div>
+          <section class="convention-lock">
+            <small>CONVENTION LOCK</small>
+            <p><code>S=1+|z|²</code>, <code>ω<sub>FS</sub>=i∂∂̄log S</code></p>
+            <p>Convention: <code>L≅O(1)</code> and <code>F<sub>B</sub>=ω<sub>FS</sub></code>. Choosing <code>O(−1)</code> flips the sign.</p>
+            <p><code>ρ=−i∂∂̄log det(g<sub>z z̄</sub>)</code></p>
+          </section>
+        </aside>
+      </section>
+
+      <section class="fold-console" id="fold-console" hidden>
+        <header>
+          <div><small>LIVE REGULARIZATION PROBE</small><h2>Move across v=0, then force ε toward zero</h2></div>
+          <code>f(u,v)=(u,v²/2) · g=diag(1,v²)</code>
+        </header>
+        <div class="fold-console-grid">
+          <canvas id="fold-canvas" aria-label="Comparison of signed density v, unsigned density absolute v, and regularized area"></canvas>
+          <div class="fold-controls">
+            <label for="fold-v"><span>FOLD COORDINATE v</span><output id="fold-v-output">−0.40</output></label>
+            <input id="fold-v" type="range" min="-1" max="1" value="-0.4" step="0.01">
+            <label for="fold-epsilon"><span>log₁₀ ε</span><output id="fold-epsilon-output">−1.0</output></label>
+            <input id="fold-epsilon" type="range" min="-4" max="0" value="-1" step="0.05">
+            <div class="fold-readout">
+              <span><small>det g</small><b id="fold-det">0.1600</b></span>
+              <span><small>signed λ̄</small><b id="fold-signed">−0.4000</b></span>
+              <span><small>√det g</small><b id="fold-unsigned">0.4000</b></span>
+              <span><small>(g<sub>ε</sub>⁻¹)<sub>22</sub></small><b id="fold-inverse">3.8462</b></span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="forge-start" id="forge-start">
+      <small>PROFESSOR'S DRILL · CP¹ → PAPER → FOLD</small>
+      <h2>다음 등식을 만드는<br><em>정답을 쏘십시오.</em></h2>
+      <p>할 일은 하나입니다. 화면의 식을 보고 아래 세 표적 중 다음 줄이 맞아지는 값을 누르십시오. 맞히면 식이 실제로 변하고 계산 기록이 남습니다.</p>
+      <div class="start-route" aria-label="Training route">
+        <span>01 CP¹ METRIC</span><i>→</i><span>02 BERRY / RICCI</span><i>→</i><span>03 c₁=1 / 2</span><i>→</i><span>04 PAPER</span><i>→</i><span>05 g+εI</span>
+      </div>
+      <button id="start-button" type="button">START · SHOOT S=2</button>
+      <small>Mouse / touch · keys 1–3 · M sound · R restart</small>
+    </section>
+
+    <section class="forge-end" id="forge-end" hidden>
+      <small>FULL CALCULATION SEALED</small>
+      <h2>Fold는 원인이 아니라<br><em>stress test였습니다.</em></h2>
+      <div class="final-chain">
+        <code>[F<sub>B</sub>/2π]=c₁(L)=1</code>
+        <span>→</span>
+        <code>[ρ/2π]=c₁(TCP¹)=2</code>
+        <span>→</span>
+        <code>f*ρ=2F<sub>B</sub>=K<sub>G</sub>dĀ</code>
+      </div>
+      <p><code>g⁻¹</code>은 fold에서 존재하지 않습니다. <code>g+εI</code>는 ε&gt;0에서 계산 가능하지만 ε→0의 역행렬은 발산합니다. 반면 signed form은 0을 지나며 부호와 pullback 관계를 계속 기록합니다.</p>
+      <div class="end-stats">
+        <span><small>SCORE</small><b id="end-score">00000</b></span>
+        <span><small>BEST COMBO</small><b id="end-combo">×0</b></span>
+        <span><small>WRONG SHOTS</small><b id="end-wrong">0</b></span>
+      </div>
+      <div class="end-actions">
+        <button id="replay-button" type="button">RUN THE CALCULATION AGAIN</button>
+        <a href="./map-lab.html">NEXT · CUSP ALIGNMENT</a>
+      </div>
+    </section>
+
+    <script type="module" src="./src/curvature.js"></script>
+  </body>
+</html>
