@@ -10,6 +10,11 @@ import {
   sourceFromBZ,
   stateDistance,
 } from "./game.js";
+import {
+  SINGULARITY_IDS,
+  ordinaryFoldCrossing,
+  singularityEntity,
+} from "./singularity-types.js";
 
 export const TRACE_STEP = FIXED_STEP;
 export const MODE_CONTINUATION = "continuation";
@@ -19,6 +24,9 @@ const ROOT_TOLERANCE = 1e-6;
 const CUSP_Q = normalize({ x: -1, y: -1, z: -1 });
 const CUSP_A = normalize({ x: 1, y: 1, z: -2 });
 const CUSP_B = normalize({ x: 1, y: -1, z: 0 });
+const ORDINARY_FOLD_ENCOUNTER = ordinaryFoldCrossing("ordinary-fold");
+const CUSP_NEIGHBORHOOD_FOLD_ENCOUNTER = ordinaryFoldCrossing("near-cusp");
+const CUSP_POINT_ENTITY = singularityEntity(SINGULARITY_IDS.CUSP_ON_FOLD_CURVE);
 
 function normalize(vector) {
   const length = Math.hypot(vector.x, vector.y, vector.z) || 1;
@@ -201,6 +209,11 @@ export function continuationScenarios() {
       kicker: "ORDINARY FOLD",
       title: "Track the +/− pair that actually disappears",
       brief: "The target follows q(θ). Connect equal sheet IDs, then lock B⁺ and C⁻ as the death pair.",
+      geometry: {
+        featuredEntityId: SINGULARITY_IDS.ORDINARY_FOLD_POINT,
+        encounter: ORDINARY_FOLD_ENCOUNTER,
+        statement: "The target crosses a singular value whose source is an ordinary point of the 1D fold curve Σ.",
+      },
       formula: "q(θ)=(sin θ,0,−cos θ) · θ:20°→35°",
       frames: traceFrames([20, 25, 29, 29.9, 30.1, 35].map((theta) => ({
         label: `θ=${theta}°`,
@@ -214,6 +227,11 @@ export function continuationScenarios() {
       kicker: "TORUS SEAM",
       title: "Keep an ID when its coordinate wraps",
       brief: "A source can jump from +π to −π on the drawing without changing sheet identity. Follow continuation, not sorting.",
+      geometry: {
+        featuredEntityId: null,
+        encounter: null,
+        statement: "The torus seam is a coordinate identification, not a singularity.",
+      },
       formula: "q(θ)=(sin θ,0,−cos θ) · θ:−8°→8°",
       frames: traceFrames([-8, -4, -0.5, 0.5, 4, 8].map((theta) => ({
         label: `θ=${theta}°`,
@@ -226,7 +244,13 @@ export function continuationScenarios() {
       number: "A3",
       kicker: "CUSP EXCHANGE",
       title: "Prove that the final survivor is a new sheet",
-      brief: "Count stays 1→3→1. Only the trace reveals S₀⁺ dies while the newly born positive sheet survives.",
+      brief: "The path crosses two ordinary arms near a cusp; it does not hit the cusp point. Trace proves S₀⁺ dies and the new positive sheet survives.",
+      geometry: {
+        featuredEntityId: SINGULARITY_IDS.CUSP_ON_FOLD_CURVE,
+        featuredEntity: CUSP_POINT_ENTITY,
+        encounter: CUSP_NEIGHBORHOOD_FOLD_ENCOUNTER,
+        statement: "Cusp geometry controls the exchange, but each birth/death occurs at an ordinary point of Σ.",
+      },
       formula: "q(A,B)=normalize(qc+A eA+B eB) · A=0.04",
       frames: traceFrames([-0.012, -0.006, -0.005, 0, 0.005, 0.006, 0.012].map((b) => ({
         label: `B=${b.toFixed(3)}`,
@@ -257,6 +281,9 @@ function loadContinuationTransition(state) {
   const previous = scenario.frames[state.transitionIndex - 1];
   const current = scenario.frames[state.transitionIndex];
   state.task = taskForTransition(previous, current);
+  state.task.singularity = state.task.pairIds.length
+    ? scenario.geometry.encounter
+    : null;
   state.solvedEdges = [];
   state.pairSolved = state.task.pairIds.length === 0;
   state.selected = null;
@@ -326,6 +353,7 @@ function resolveContinuationSelection(state, first, second) {
       type: state.task.pairLayer === "current" ? "pair-born" : "pair-died",
       ids: [...state.task.pairIds],
       gain,
+      singularity: state.task.singularity,
     });
   } else {
     state.combo = 0;
@@ -345,6 +373,7 @@ function resolveContinuationSelection(state, first, second) {
       died: [...state.task.died],
       signedBefore: previous.signedMultiplicity,
       signedAfter: current.signedMultiplicity,
+      singularity: state.task.singularity,
     });
     state.advanceDelay = 0.62;
     state.events.push({ type: "transition-clear", scenario: scenario.id });
@@ -447,7 +476,14 @@ const RUNNER_STAGES = [
     number: "B1",
     kicker: "PRESERVE",
     title: "Carry S₀ around the cusp lobe",
-    brief: "Reach the right gate without ever entering the three-root region.",
+    brief: "Route around the cusp value without crossing f(Σ); the cusp is a point on the curve, not the whole amber event.",
+    geometry: {
+      featuredEntityId: SINGULARITY_IDS.CUSP_ON_FOLD_CURVE,
+      featuredEntity: CUSP_POINT_ENTITY,
+      encounter: CUSP_NEIGHBORHOOD_FOLD_ENCOUNTER,
+      expectedEncounterCount: 0,
+      statement: "Avoid the 1D critical-value curve and its cusp point.",
+    },
     start: { a: 0.04, b: -0.014 },
     goal: { a: 0.04, b: 0.014 },
     goalRadius: 0.0034,
@@ -458,7 +494,14 @@ const RUNNER_STAGES = [
     number: "B2",
     kicker: "PAIR BIRTH",
     title: "Enter the lobe and tag the newborn +/− pair",
-    brief: "Cross the first fold, then strike the two roots that were born together.",
+    brief: "Cross an ordinary arm of f(Σ) near the cusp, then strike the two roots born together.",
+    geometry: {
+      featuredEntityId: SINGULARITY_IDS.CUSP_ON_FOLD_CURVE,
+      featuredEntity: CUSP_POINT_ENTITY,
+      encounter: CUSP_NEIGHBORHOOD_FOLD_ENCOUNTER,
+      expectedEncounterCount: 1,
+      statement: "The pair is born at an ordinary point of Σ; the nearby cusp shapes the lobe.",
+    },
     start: { a: 0.04, b: -0.014 },
     goal: { a: 0.04, b: 0 },
     goalRadius: 0.004,
@@ -469,7 +512,14 @@ const RUNNER_STAGES = [
     number: "B3",
     kicker: "SURVIVOR EXCHANGE",
     title: "Make the newborn positive sheet survive",
-    brief: "Inside the lobe, tag S₀⁺ with S⁻ as the future death pair, then exit through the opposite fold.",
+    brief: "Inside the cusp lobe, tag S₀⁺ with S⁻, then exit through the opposite ordinary arm of f(Σ).",
+    geometry: {
+      featuredEntityId: SINGULARITY_IDS.CUSP_ON_FOLD_CURVE,
+      featuredEntity: CUSP_POINT_ENTITY,
+      encounter: CUSP_NEIGHBORHOOD_FOLD_ENCOUNTER,
+      expectedEncounterCount: 2,
+      statement: "Both crossings are ordinary fold points on Σ; together they exchange the survivor around the cusp.",
+    },
     start: { a: 0.04, b: -0.014 },
     goal: { a: 0.04, b: 0.014 },
     goalRadius: 0.0034,
@@ -497,6 +547,7 @@ function initializeRunnerStage(state) {
   state.pairTagged = false;
   state.lastBornPair = [];
   state.lastDiedPair = [];
+  state.singularEncounters = [];
   state.everTriple = false;
   state.timeLeft = stage.time;
   state.stageDelay = null;
@@ -604,6 +655,11 @@ function updateRunnerRoots(state) {
       type: "runner-pair-born",
       ids: [...state.lastBornPair],
       signs: tracked.born.map((root) => root.sign),
+      singularity: state.stages[state.stageIndex].geometry.encounter,
+    });
+    state.singularEncounters.push({
+      type: "pair-born",
+      singularity: state.stages[state.stageIndex].geometry.encounter,
     });
   }
   if (tracked.died.length === 2) {
@@ -612,6 +668,11 @@ function updateRunnerRoots(state) {
       type: "runner-pair-died",
       ids: [...state.lastDiedPair],
       signs: tracked.died.map((root) => root.sign),
+      singularity: state.stages[state.stageIndex].geometry.encounter,
+    });
+    state.singularEncounters.push({
+      type: "pair-died",
+      singularity: state.stages[state.stageIndex].geometry.encounter,
     });
   }
 }
@@ -636,6 +697,7 @@ function clearRunnerStage(state) {
     diedPair: [...state.lastDiedPair],
     pairTagged: state.pairTagged,
     signedMultiplicity: state.roots.reduce((sum, root) => sum + root.sign, 0),
+    singularEncounters: state.singularEncounters.map((encounter) => ({ ...encounter })),
   });
   state.score += 900 + Math.round(state.timeLeft * 20);
   state.events.push({ type: "runner-stage-clear", stage: stage.id, finalId });
@@ -755,7 +817,7 @@ export function runnerEvidence(state) {
   };
 }
 
-export function criticalCuspCurve(samples = 100) {
+export function criticalValueCurveNearCusp(samples = 100) {
   const result = [];
   for (let index = 0; index <= samples; index += 1) {
     const c = -0.22 + 0.44 * index / samples;
@@ -770,6 +832,10 @@ export function criticalCuspCurve(samples = 100) {
     });
   }
   return result;
+}
+
+export function criticalCuspCurve(samples = 100) {
+  return criticalValueCurveNearCusp(samples);
 }
 
 export function runnerTarget(state) {

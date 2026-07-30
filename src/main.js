@@ -15,6 +15,7 @@ import {
   signedPeriodicDelta,
   stepMission,
 } from "./game.js";
+import { SINGULARITY_IDS } from "./singularity-types.js";
 
 const missions = makeMissions();
 
@@ -87,15 +88,20 @@ const FIELD_EFFECT_COPY = {
     action: "λ̄ ≈ 0 · THE WHITE IMAGE TURNS BACK",
     result: "det g = 0 · g⁻¹ UNAVAILABLE · NO DAMAGE",
   },
+  "near-fold": {
+    name: "NEAR AMBER CURVE: AREA IS BEING COMPRESSED",
+    action: "λ̄ IS SMALL BUT NONZERO · THIS POINT IS STILL REGULAR",
+    result: "det g > 0 · ORIENTATION SIGN STILL COUNTS",
+  },
   reversed: {
     name: "INSIDE CORAL REGION: THE PATCH COUNTS BACKWARD",
     action: "MOVE LEFT DOT → WHITE IMAGE HAS REVERSED ORIENTATION",
     result: "λ̄ < 0 · AN AUTHORED GATE HERE CARRIES −1",
   },
   cusp: {
-    name: "AT AMBER TRIANGLE: THE FOLD ITSELF TURNS",
+    name: "ON Σ AT AMBER TRIANGLE: THIS IS THE CUSP POINT",
     action: "SOURCE MOTION ALIGNS WITH THE COLLAPSED DIRECTION",
-    result: "SHARP MAPPING COMPRESSION · NO DAMAGE · NO PICKUP",
+    result: "THIS POINT IS ON Σ · THE CUSP IS NOT AN ISOLATED SINGULAR SET",
   },
 };
 
@@ -187,12 +193,10 @@ class SoundField {
         type: "triangle",
         volume: 0.09,
       });
+    } else if (event.type === "cusp-warning") {
+      this.chord([246.94, 369.99, 739.99], 0.035);
     } else if (event.type === "field") {
-      if (event.effect.kind === "cusp") {
-        this.chord([246.94, 369.99, 739.99], 0.035);
-      } else {
-        this.tone(290, 0.16, { slide: 145, type: "triangle", volume: 0.075 });
-      }
+      this.tone(290, 0.16, { slide: 145, type: "triangle", volume: 0.075 });
     } else if (event.type === "wrap") {
       this.tone(330, 0.18, { slide: 660, type: "sine", volume: 0.08 });
     } else if (event.type === "pulse") {
@@ -854,12 +858,15 @@ function updateTelemetry() {
       : "REGULAR";
 
   const fieldEffect = game.fieldEffect;
-  const fieldCopy = FIELD_EFFECT_COPY[fieldEffect.kind];
-  ui.fieldEffectCard.dataset.kind = fieldEffect.kind;
+  const atCuspPoint = fieldEffect.singularPoint?.id
+    === SINGULARITY_IDS.CUSP_ON_FOLD_CURVE;
+  const displayKind = atCuspPoint ? "cusp" : fieldEffect.kind;
+  const fieldCopy = FIELD_EFFECT_COPY[displayKind];
+  ui.fieldEffectCard.dataset.kind = displayKind;
   ui.fieldEffectName.textContent = `${fieldCopy.name} · λ̄ ${formatSigned(fieldEffect.signedDensity, 3)}`;
   ui.fieldEffectAction.textContent = fieldCopy.action;
   ui.fieldEffectResult.textContent = fieldCopy.result;
-  ui.cuspAlert.hidden = fieldEffect.kind !== "cusp";
+  ui.cuspAlert.hidden = !fieldEffect.cuspProximity.withinWarningRadius;
 
   const charge = chargeFromSignedArea(game.coverage.signedArea);
   ui.chargeValue.textContent = formatSigned(charge);
@@ -880,13 +887,14 @@ function updateTelemetry() {
   const { kx, ky } = bzCoordinates(game.source);
   ui.liveBzPoint.textContent = `k=(${formatSigned(kx / Math.PI, 2)}π, ${formatSigned(ky / Math.PI, 2)}π)`;
   ui.liveBlochPoint.textContent = `n=(${game.mapped.x.toFixed(2)}, ${game.mapped.y.toFixed(2)}, ${game.mapped.z.toFixed(2)})`;
-  ui.liveCellCard.dataset.kind = fieldEffect.kind;
+  ui.liveCellCard.dataset.kind = displayKind;
   const contributionCopy = {
     positive: "ADDS ORIENTED AREA",
+    "near-fold": "APPROACHES AREA COLLAPSE",
     fold: "MAPPED PATCH COLLAPSES",
     reversed: "SUBTRACTS ORIENTED AREA",
-    cusp: "FOLD DIRECTION TURNS",
-  }[fieldEffect.kind];
+    cusp: "ON Σ AT A CUSP POINT",
+  }[displayKind];
   ui.liveCellContribution.textContent = `λ̄=${formatSigned(fieldEffect.signedDensity, 3)} · ${contributionCopy}`;
   ui.cameraPhase.textContent = `VIEW ${String(Math.round((((camera.yaw % TAU) + TAU) % TAU) * 180 / Math.PI)).padStart(3, "0")}°`;
   ui.rawValue.textContent = game.coverage.rawArea.toFixed(0);

@@ -5,7 +5,7 @@ import {
   continuationEvidence,
   createContinuationState,
   createRunnerState,
-  criticalCuspCurve,
+  criticalValueCurveNearCusp,
   currentContinuationView,
   drainTraceEvents,
   runnerEvidence,
@@ -18,7 +18,12 @@ import {
   tagRunnerRoot,
   torusLabel,
 } from "./trace-mechanics.js";
-import { bzCoordinates, foldBranchesAtU, sourceFromBZ } from "./game.js";
+import {
+  bzCoordinates,
+  cuspPoints,
+  foldBranchesAtU,
+  sourceFromBZ,
+} from "./game.js";
 
 const canvas = document.querySelector("#trace-canvas");
 const context = canvas.getContext("2d");
@@ -37,6 +42,7 @@ const ui = {
   formulaTarget: document.querySelector("#formula-target"),
   formulaRoots: document.querySelector("#formula-roots"),
   formulaSigned: document.querySelector("#formula-signed"),
+  formulaGeometry: document.querySelector("#formula-geometry"),
   ledger: document.querySelector("#root-ledger"),
   receipt: document.querySelector("#trace-receipt"),
   event: document.querySelector("#trace-event"),
@@ -77,7 +83,7 @@ let audioContext = null;
 const keys = new Set();
 const particles = [];
 const floaters = [];
-const cuspCurve = criticalCuspCurve(160);
+const criticalValueCurve = criticalValueCurveNearCusp(160);
 
 function currentStage() {
   if (mode === MODE_CONTINUATION) return currentContinuationView(game)?.scenario ?? null;
@@ -154,13 +160,13 @@ function processEvents() {
       burst(width * 0.5, height * 0.46, COLORS.fold, 54, 270);
       shake = Math.max(shake, 12);
       floater("+/− PAIR BORN", COLORS.fold);
-      eventMessage("A positive and negative sheet were born at one fold.", "fold");
+      eventMessage("A +/− pair was born at an ordinary point of the 1D curve Σ.", "fold");
     } else if (["pair-died", "runner-pair-died"].includes(event.type)) {
       tone(360, 0.16, "sawtooth", 0.06, 0.35);
       burst(width * 0.5, height * 0.46, COLORS.negative, 64, 290);
       shake = Math.max(shake, 15);
       floater("+/− PAIR CANCELLED", COLORS.fold);
-      eventMessage("The tagged opposite sheets met at λ̄=0 and disappeared.", "fold");
+      eventMessage("The tagged pair met at an ordinary point of Σ and disappeared; the cusp remains a special point on that curve.", "fold");
     } else if (["edge-wrong", "pair-wrong", "runner-pair-wrong"].includes(event.type)) {
       tone(110, 0.18, "sawtooth", 0.05, 0.55);
       shake = Math.max(shake, 9);
@@ -285,6 +291,25 @@ function drawFoldCurve(rect) {
   }
 }
 
+function drawDomainCuspPoints(rect) {
+  for (const cusp of cuspPoints()) {
+    const point = bzPoint(cusp, rect);
+    context.save();
+    context.translate(point.x, point.y);
+    context.fillStyle = "rgba(255,201,107,.2)";
+    context.strokeStyle = COLORS.fold;
+    context.lineWidth = 1.7;
+    context.beginPath();
+    context.moveTo(0, -7);
+    context.lineTo(7, 6);
+    context.lineTo(-7, 6);
+    context.closePath();
+    context.fill();
+    context.stroke();
+    context.restore();
+  }
+}
+
 function rootColor(root) {
   return root.sign < 0 ? COLORS.negative : root.sign > 0 ? COLORS.positive : COLORS.fold;
 }
@@ -345,6 +370,8 @@ function drawContinuation() {
   drawDomainGrid(currentRect);
   drawFoldCurve(previousRect);
   drawFoldCurve(currentRect);
+  drawDomainCuspPoints(previousRect);
+  drawDomainCuspPoints(currentRect);
 
   for (const id of game.solvedEdges) {
     const before = view.previous.roots.find((root) => root.id === id);
@@ -409,10 +436,11 @@ function drawRunner() {
     w: Math.max(160, width - domainRect.x - domainRect.w - gap - margin),
     h: domainSize,
   };
-  panel({ x: domainRect.x - 10, y: domainRect.y - 32, w: domainRect.w + 20, h: domainRect.h + 52 }, "SOURCE ROOTS · T²");
-  panel({ x: targetRect.x - 10, y: targetRect.y - 32, w: targetRect.w + 20, h: targetRect.h + 52 }, "TARGET STEERING · S² CUSP CHART");
+  panel({ x: domainRect.x - 10, y: domainRect.y - 32, w: domainRect.w + 20, h: domainRect.h + 52 }, "SOURCE ROOTS · T² · Σ CURVE + CUSP POINTS");
+  panel({ x: targetRect.x - 10, y: targetRect.y - 32, w: targetRect.w + 20, h: targetRect.h + 52 }, "TARGET STEERING · S² · f(Σ) + CUSP VALUE");
   drawDomainGrid(domainRect);
   drawFoldCurve(domainRect);
+  drawDomainCuspPoints(domainRect);
 
   const trails = new Map();
   for (const sample of game.history) {
@@ -454,7 +482,7 @@ function drawRunner() {
   }
 
   context.beginPath();
-  cuspCurve.forEach((coordinate, index) => {
+  criticalValueCurve.forEach((coordinate, index) => {
     const point = localPoint(coordinate, targetRect);
     if (index === 0) context.moveTo(point.x, point.y);
     else context.lineTo(point.x, point.y);
@@ -465,6 +493,22 @@ function drawRunner() {
   context.shadowBlur = 12;
   context.stroke();
   context.shadowBlur = 0;
+
+  const cuspValue = localPoint({ a: 0, b: 0 }, targetRect);
+  context.fillStyle = "rgba(255,201,107,.22)";
+  context.strokeStyle = COLORS.fold;
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(cuspValue.x, cuspValue.y - 9);
+  context.lineTo(cuspValue.x + 8, cuspValue.y + 7);
+  context.lineTo(cuspValue.x - 8, cuspValue.y + 7);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  context.fillStyle = COLORS.fold;
+  context.font = "800 8px ui-monospace, monospace";
+  context.textAlign = "left";
+  context.fillText("CUSP VALUE · ONE POINT ON f(Σ)", cuspValue.x + 12, cuspValue.y - 7);
 
   context.beginPath();
   game.history.forEach((sample, index) => {
@@ -566,9 +610,15 @@ function renderReceipt() {
   const recent = receipts.slice(-4).reverse();
   ui.receipt.innerHTML = recent.map((receipt) => {
     if (mode === MODE_CONTINUATION) {
-      return `<p><b>${receipt.scenario.toUpperCase()}</b> ${receipt.from}→${receipt.to}<br><span>edges ${receipt.shared.join(",") || "none"} · born ${receipt.born.join(",") || "—"} · died ${receipt.died.join(",") || "—"} · m ${receipt.signedBefore}→${receipt.signedAfter}</span></p>`;
+      const encounter = receipt.singularity
+        ? ` · locus ${receipt.singularity.locus.symbol} (${receipt.singularity.locus.dimension}D) · point ${receipt.singularity.point.id}`
+        : " · no singular encounter";
+      return `<p><b>${receipt.scenario.toUpperCase()}</b> ${receipt.from}→${receipt.to}<br><span>edges ${receipt.shared.join(",") || "none"} · born ${receipt.born.join(",") || "—"} · died ${receipt.died.join(",") || "—"} · m ${receipt.signedBefore}→${receipt.signedAfter}${encounter}</span></p>`;
     }
-    return `<p><b>${receipt.stage.toUpperCase()}</b> ${receipt.initialId}→${receipt.finalId}<br><span>born ${receipt.bornPair.join(",") || "—"} · died ${receipt.diedPair.join(",") || "—"} · m=${receipt.signedMultiplicity}</span></p>`;
+    const encounters = receipt.singularEncounters.length
+      ? `${receipt.singularEncounters.length} ordinary crossing(s) on Σ`
+      : "no crossing of Σ";
+    return `<p><b>${receipt.stage.toUpperCase()}</b> ${receipt.initialId}→${receipt.finalId}<br><span>born ${receipt.bornPair.join(",") || "—"} · died ${receipt.diedPair.join(",") || "—"} · m=${receipt.signedMultiplicity} · ${encounters}</span></p>`;
   }).join("");
 }
 
@@ -581,6 +631,7 @@ function renderUI() {
   ui.kicker.textContent = stage.kicker;
   ui.title.textContent = stage.title;
   ui.brief.textContent = stage.brief;
+  ui.formulaGeometry.textContent = stage.geometry.statement;
   ui.score.textContent = String(game.score).padStart(5, "0");
   ui.combo.textContent = `TRACE COMBO ×${game.combo}`;
   ui.integrity.textContent = "◆".repeat(game.integrity) + "◇".repeat(Math.max(0, 3 - game.integrity));

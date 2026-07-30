@@ -382,6 +382,7 @@ button {
 }
 
 .live-correspondence [data-kind="reversed"] strong { color: var(--negative); }
+.live-correspondence [data-kind="near-fold"] strong,
 .live-correspondence [data-kind="fold"] strong,
 .live-correspondence [data-kind="cusp"] strong { color: var(--amber); }
 
@@ -565,11 +566,13 @@ canvas {
   letter-spacing: 0.06em;
 }
 
+.field-effect-card[data-kind="near-fold"],
 .field-effect-card[data-kind="fold"],
 .field-effect-card[data-kind="cusp"] {
   border-color: rgba(var(--amber-rgb), 0.62);
 }
 
+.field-effect-card[data-kind="near-fold"] small,
 .field-effect-card[data-kind="fold"] small,
 .field-effect-card[data-kind="cusp"] small {
   color: var(--amber);

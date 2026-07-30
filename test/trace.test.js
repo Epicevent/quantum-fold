@@ -14,6 +14,7 @@ import {
   meridianClosedFormRoots,
   rawMultiplicityAt,
   runnerEvidence,
+  runnerStages,
   selectContinuationNode,
   startContinuation,
   startRunner,
@@ -22,6 +23,7 @@ import {
   tagRunnerRoot,
 } from "../src/trace-mechanics.js";
 import { periodicDistance, sourceFromBZ } from "../src/game.js";
+import { SINGULARITY_IDS } from "../src/singularity-types.js";
 
 function solveContinuationTask(state) {
   for (const id of state.task.shared) {
@@ -77,6 +79,10 @@ test("the meridian uses the paper map's exact 3-to-1 fold roots", () => {
 
 test("the cusp trace preserves provenance and exchanges the survivor", () => {
   const cusp = continuationScenarios().find((scenario) => scenario.id === "cusp");
+  assert.equal(cusp.geometry.featuredEntityId, SINGULARITY_IDS.CUSP_ON_FOLD_CURVE);
+  assert.equal(cusp.geometry.encounter.point.id, SINGULARITY_IDS.ORDINARY_FOLD_POINT);
+  assert.equal(cusp.geometry.encounter.locus.dimension, 1);
+  assert.equal(cusp.geometry.encounter.cuspPointHit, false);
   assert.deepEqual(cusp.frames.map((frame) => frame.roots.length), [1, 1, 3, 3, 3, 1, 1]);
   const initialId = cusp.frames[0].roots[0].id;
   const bornIds = cusp.frames[2].born.map((root) => root.id);
@@ -128,6 +134,13 @@ test("Continuation Strike completes only after edges and fold parentage are both
   assert.ok(state.receipts.some((receipt) => receipt.died.length === 2));
   assert.ok(state.receipts.some((receipt) => receipt.born.length === 2));
   assert.ok(state.receipts.every((receipt) => receipt.signedBefore === 1 && receipt.signedAfter === 1));
+  const singularReceipts = state.receipts.filter((receipt) => receipt.singularity);
+  assert.ok(singularReceipts.length >= 3);
+  assert.ok(singularReceipts.every((receipt) => (
+    receipt.singularity.locus.dimension === 1
+    && receipt.singularity.point.id === SINGULARITY_IDS.ORDINARY_FOLD_POINT
+    && receipt.singularity.cuspPointHit === false
+  )));
 });
 
 test("Continuation Strike fixed-step replay is deterministic", () => {
@@ -157,6 +170,20 @@ test("the cusp chart has one, three, one roots with signed sum one", () => {
   assert.deepEqual(rawMultiplicityAt(0.04, 0.012), { count: 1, signs: [1], signed: 1 });
 });
 
+test("runner stages distinguish the cusp feature from ordinary fold crossings", () => {
+  const [preserve, forge, exchange] = runnerStages();
+  assert.equal(preserve.geometry.featuredEntityId, SINGULARITY_IDS.CUSP_ON_FOLD_CURVE);
+  assert.equal(preserve.geometry.encounter.point.id, SINGULARITY_IDS.ORDINARY_FOLD_POINT);
+  assert.equal(preserve.geometry.expectedEncounterCount, 0);
+  for (const stage of [forge, exchange]) {
+    assert.equal(stage.geometry.featuredEntityId, SINGULARITY_IDS.CUSP_ON_FOLD_CURVE);
+    assert.equal(stage.geometry.encounter.point.id, SINGULARITY_IDS.ORDINARY_FOLD_POINT);
+    assert.equal(stage.geometry.encounter.cuspPointHit, false);
+  }
+  assert.equal(forge.geometry.expectedEncounterCount, 1);
+  assert.equal(exchange.geometry.expectedEncounterCount, 2);
+});
+
 test("Sheet Runner Preserve, Forge, and Exchange contracts are all achievable", () => {
   const state = createRunnerState();
   startRunner(state);
@@ -168,6 +195,7 @@ test("Sheet Runner Preserve, Forge, and Exchange contracts are all achievable", 
   stepUntil(state, () => state.stageIndex === 1, 400);
   assert.equal(state.receipts[0].stage, "preserve");
   assert.equal(state.receipts[0].initialId, state.receipts[0].finalId);
+  assert.deepEqual(state.receipts[0].singularEncounters, []);
 
   for (let guard = 0; guard < 9000 && state.stageDelay === null; guard += 1) {
     stepRunner(state, { moveX: 1, moveY: 0 });
@@ -179,6 +207,9 @@ test("Sheet Runner Preserve, Forge, and Exchange contracts are all achievable", 
   stepUntil(state, () => state.stageIndex === 2, 400);
   assert.equal(state.receipts[1].stage, "forge");
   assert.equal(state.receipts[1].pairTagged, true);
+  assert.ok(state.receipts[1].singularEncounters.every((event) => (
+    event.singularity.point.id === SINGULARITY_IDS.ORDINARY_FOLD_POINT
+  )));
 
   for (let guard = 0; guard < 12000 && state.stageDelay === null; guard += 1) {
     stepRunner(state, { moveX: 1, moveY: 0 });
@@ -193,6 +224,10 @@ test("Sheet Runner Preserve, Forge, and Exchange contracts are all achievable", 
   assert.equal(exchange.stage, "exchange");
   assert.notEqual(exchange.finalId, exchange.initialId);
   assert.equal(exchange.signedMultiplicity, 1);
+  assert.ok(exchange.singularEncounters.every((event) => (
+    event.singularity.point.id === SINGULARITY_IDS.ORDINARY_FOLD_POINT
+    && event.singularity.cuspPointHit === false
+  )));
 });
 
 test("a direct Preserve route fails because it enters the three-sheet region", () => {
@@ -204,6 +239,9 @@ test("a direct Preserve route fails because it enters the three-sheet region", (
   assert.equal(state.integrity, 2);
   assert.equal(state.receipts.length, 0);
   assert.ok(state.events.some((event) => event.type === "runner-fail" && event.reason === "entered-three-sheet-region"));
+  const forbiddenCrossing = state.events.find((event) => event.type === "runner-pair-born");
+  assert.equal(forbiddenCrossing.singularity.point.id, SINGULARITY_IDS.ORDINARY_FOLD_POINT);
+  assert.equal(forbiddenCrossing.singularity.locus.dimension, 1);
 });
 
 test("Sheet Runner fixed-step replay and root continuation are deterministic", () => {
@@ -238,4 +276,8 @@ test("trace simulation is separated from effects and the browser exposes both mo
   assert.match(html, /data-start-mode="runner"/);
   assert.match(html, /id="root-ledger"/);
   assert.match(html, /id="trace-receipt"/);
+  assert.match(html, /id="formula-geometry"/);
+  assert.match(html, /isolated branch point/);
+  assert.match(renderer, /drawDomainCuspPoints/);
+  assert.match(renderer, /CUSP VALUE · ONE POINT ON f\(Σ\)/);
 });

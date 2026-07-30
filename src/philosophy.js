@@ -8,6 +8,7 @@ import {
   metricDeterminant,
   orientationValue,
 } from "./game.js";
+import { SINGULARITY_IDS } from "./singularity-types.js";
 
 const slider = document.querySelector("#scene-slider");
 const presetButtons = [...document.querySelectorAll("[data-scene-v]")];
@@ -134,8 +135,12 @@ function updateScene() {
   multiplicityReceipt.textContent = `${multiplicity} source${multiplicity === 1 ? "" : "s"}`;
   sceneLab.dataset.kind = effect.kind;
 
-  if (effect.kind === "fold") {
-    eventReceipt.textContent = "노란 선에서 이 작은 BZ patch의 mapped area가 거의 0으로 눌린다. damage나 packet 획득은 없다.";
+  if (effect.singularPoint?.id === SINGULARITY_IDS.CUSP_ON_FOLD_CURVE) {
+    eventReceipt.textContent = "지금 점은 1차원 Σ 위의 cusp다. cusp stratum은 discrete이지만 이 점은 Σ 안에서 고립되어 있지 않다.";
+  } else if (effect.kind === "fold") {
+    eventReceipt.textContent = "노란 선 Σ의 ordinary point에서 이 작은 BZ patch의 mapped area가 0으로 눌린다. damage나 packet 획득은 없다.";
+  } else if (effect.kind === "near-fold") {
+    eventReceipt.textContent = `Σ에 접근 중이어서 |λ̄|가 작지만 아직 det g>0인 regular point다. 부호는 ${effect.regionKind === "reversed" ? "−" : "+"}로 유지된다.`;
   } else if (effect.kind === "reversed") {
     eventReceipt.textContent = "선을 건넌 뒤 같은 크기의 BZ cell이 oriented Bloch area에서 음수로 빠진다.";
   } else {

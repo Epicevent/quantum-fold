@@ -27,6 +27,11 @@ import {
   stepSource,
 } from "../src/game.js";
 import {
+  FOLD_CURVE_LOCUS,
+  SINGULARITY_CATALOG,
+  SINGULARITY_IDS,
+} from "../src/singularity-types.js";
+import {
   applyAnswerHit,
   applyProbeHit,
   createShooterState,
@@ -300,7 +305,7 @@ test("the four documented points are Whitney cusps on a smooth singular curve", 
   }
 });
 
-test("field feedback distinguishes positive, fold, reversed, and cusp effects", () => {
+test("field state separates curve membership, cusp stratum, and visual proximity", () => {
   const ordinaryFold = {
     u: 0.6,
     v: foldBranchesAtU(0.6)[0],
@@ -311,6 +316,7 @@ test("field feedback distinguishes positive, fold, reversed, and cusp effects", 
   const fold = fieldEffectAt(ordinaryFold);
   const reversed = fieldEffectAt({ u: 0.6, v: 0.6 });
   const cuspEffect = fieldEffectAt(cusp);
+  const nearCusp = fieldEffectAt({ u: cusp.u + 0.01, v: cusp.v });
 
   assert.equal(positive.kind, "positive");
   assert.equal(positive.localResponse, "orientation-preserved");
@@ -320,15 +326,51 @@ test("field feedback distinguishes positive, fold, reversed, and cusp effects", 
   assert.ok(Math.abs(fold.signedDensity) < 1e-12);
   assert.equal(fold.localResponse, "rank-loss");
   assert.equal(fold.packetSign, null);
+  assert.equal(fold.singularLocus.id, FOLD_CURVE_LOCUS.id);
+  assert.equal(fold.singularPoint.id, SINGULARITY_IDS.ORDINARY_FOLD_POINT);
 
   assert.equal(reversed.kind, "reversed");
   assert.equal(reversed.localResponse, "orientation-reversed");
   assert.equal(reversed.packetSign, -1);
 
-  assert.equal(cuspEffect.kind, "cusp");
+  assert.equal(cuspEffect.kind, "fold");
   assert.ok(Math.abs(cuspEffect.signedDensity) < 1e-12);
+  assert.equal(cuspEffect.singularLocus.dimension, 1);
+  assert.equal(cuspEffect.singularPoint.id, SINGULARITY_IDS.CUSP_ON_FOLD_CURVE);
+  assert.equal(cuspEffect.singularPoint.isolatedSingularLocus, false);
+  assert.equal(cuspEffect.cuspProximity.atCuspPoint, true);
   assert.equal(cuspEffect.causesDamage, false);
   assert.equal(cuspEffect.isCollectible, false);
+
+  assert.equal(nearCusp.kind, "near-fold");
+  assert.equal(nearCusp.cuspProximity.withinWarningRadius, true);
+  assert.equal(nearCusp.onSingularCurve, false);
+  assert.equal(nearCusp.singularLocus, null);
+  assert.equal(nearCusp.singularPoint, null);
+  assert.equal(nearCusp.localResponse, "approaching-rank-loss");
+  assert.notEqual(nearCusp.metricDeterminant, 0);
+});
+
+test("singularity catalog keeps ordinary folds, cusps, and isolated branch points distinct", () => {
+  const ordinary = SINGULARITY_CATALOG[SINGULARITY_IDS.ORDINARY_FOLD_POINT];
+  const cusp = SINGULARITY_CATALOG[SINGULARITY_IDS.CUSP_ON_FOLD_CURVE];
+  const branch = SINGULARITY_CATALOG[SINGULARITY_IDS.ISOLATED_BRANCH_POINT];
+
+  assert.equal(ordinary.singularLocusDimension, 1);
+  assert.equal(ordinary.pointStratumDimension, 1);
+  assert.equal(ordinary.localModel, "(u,v)↦(u,v²)");
+
+  assert.equal(cusp.singularLocusId, ordinary.singularLocusId);
+  assert.equal(cusp.singularLocusDimension, 1);
+  assert.equal(cusp.pointStratumDimension, 0);
+  assert.equal(cusp.isolatedWithinSingularLocus, false);
+  assert.equal(cusp.isolatedWithinCuspStratum, true);
+  assert.equal(cusp.isolatedSingularLocus, false);
+
+  assert.equal(branch.singularLocusDimension, 0);
+  assert.equal(branch.localModel, "z↦z²");
+  assert.equal(branch.isolatedSingularLocus, true);
+  assert.equal(branch.activeInTwoBandGame, false);
 });
 
 test("the first interactive scene crosses one actual fold and exposes the live correspondence", () => {
@@ -444,7 +486,7 @@ test("the artifacts show one concrete scene before naming principles or formulas
     "왼쪽 점을 움직이면 오른쪽 점이 움직인다. 노란 선에서 작은 면적이 0으로 눌린 뒤 부호가 바뀐다",
     "실제 게임 장면 하나",
     "적분영역은 궤적이 아니라 왼쪽 보드 전체다",
-    "노란 선과 삼각형에 들어가면 화면에서 무엇이 달라지는가",
+    "노란 선을 건널 때와 그 위 cusp 점에 닿을 때 무엇이 다른가",
     "위 장면을 만드는 two-band map과 막히는 계산",
     "f:T²<sub>BZ</sub>→S²<sub>Bloch</sub>",
     "damage도 pickup도 없고 packet sign도 없다.",
@@ -492,7 +534,8 @@ test("the artifacts show one concrete scene before naming principles or formulas
     "3 · THIS SMALL BZ CELL CONTRIBUTES",
     "PAPER:</b> sum every BZ cell",
     "GAME:</b> collected gate packets only imitate the sign cancellation",
-    "AT THIS AMBER TRIANGLE, THE FOLD ITSELF TURNS",
+    "NEAR AN AMBER TRIANGLE: A CUSP POINT LIES ON Σ",
+    "ONLY THE CURVE ITSELF HAS det g=0",
     "PACKET SUM",
     "GAME PROXY RECEIPT",
   ]) {
@@ -501,7 +544,7 @@ test("the artifacts show one concrete scene before naming principles or formulas
   assert.ok(renderer.includes("HERE: A SMALL BZ PATCH ADDS AREA"));
   assert.ok(renderer.includes("ON AMBER LINE: THE PATCH COLLAPSES TO A CURVE"));
   assert.ok(renderer.includes("INSIDE CORAL REGION: THE PATCH COUNTS BACKWARD"));
-  assert.ok(renderer.includes("AT AMBER TRIANGLE: THE FOLD ITSELF TURNS"));
+  assert.ok(renderer.includes("ON Σ AT AMBER TRIANGLE: THIS IS THE CUSP POINT"));
   assert.ok(renderer.includes("This is not the BZ integral."));
   assert.ok(renderer.includes("function drawSphereMesh"));
 });

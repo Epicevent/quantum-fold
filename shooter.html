@@ -56,6 +56,10 @@
           <small>INVARIANT · WHAT THE SIGNS SAY</small>
           <code id="formula-signed">Σ sgn λ̄ = 1 → 1</code>
         </div>
+        <div>
+          <small>SINGULAR GEOMETRY · LOCUS ≠ ENCOUNTER DOT</small>
+          <code id="formula-geometry">Σ is a 1D curve · this crossing is an ordinary point</code>
+        </div>
       </section>
 
       <section class="trace-layout">
@@ -70,7 +74,7 @@
           <div class="arena-controls" id="controls-a">
             <b>DESKTOP / TOUCH</b>
             <span>tap a root at t−1 → tap its continuation at t</span>
-            <span>tap two roots on one layer → lock a born/died fold pair</span>
+            <span>tap two roots on one layer → lock a pair born/died at an ordinary point of Σ</span>
           </div>
           <div class="arena-controls" id="controls-b" hidden>
             <b>STEER TARGET q(A,B)</b>
@@ -101,6 +105,10 @@
             <b>WHY TRACE?</b>
             <p><code>1 → 3 → 1</code> cannot tell whether the original sheet survived. Continuation edges distinguish <code>S₀⁺→Snew⁺</code> from the fake story <code>S₀⁺→S₀⁺</code>.</p>
           </div>
+          <div class="receipt-rule entity-rule">
+            <b>ENTITY LOCK</b>
+            <p><code>ordinary fold point</code> lies on the 1D curve <code>Σ</code>. The <code>cusp stratum</code> is discrete, but each cusp still lies on and is approached along that same curve. An isolated branch point <code>z↦z²</code> is a different 0D singular locus; it is comparison-only and never spawned in this two-band game.</p>
+          </div>
         </aside>
       </section>
     </main>
@@ -115,7 +123,7 @@
         <article>
           <small>A · DATA ASSOCIATION SHOOTER</small>
           <h3>CONTINUATION<br>STRIKE</h3>
-          <p>The target path is fixed. Fire continuation beams between the same source sheet across time. At a fold, lock the real <code>+/−</code> birth or death pair.</p>
+          <p>The target path is fixed. Fire continuation beams between the same source sheet across time. At an ordinary point of the 1D curve <code>Σ</code>, lock the real <code>+/−</code> birth or death pair.</p>
           <div class="start-math">
             <code>q(θ)=(sinθ,0,−cosθ)</code>
             <code>3tanθ·t²−2t+tanθ=0</code>
@@ -126,7 +134,7 @@
         <article>
           <small>B · SHEET RUNNER · PATH-CONTROL SHOOTER</small>
           <h3>SHEET<br>RUNNER</h3>
-          <p>You steer the target on S². Choose whether to avoid the cusp lobe, create a pair, or exchange the surviving positive sheet.</p>
+          <p>You steer the target on S². Avoid or cross the two ordinary arms of <code>f(Σ)</code> near its cusp value; the path does not hit the cusp point itself.</p>
           <div class="start-math">
             <code>q(A,B)=normalize(qc+A eA+B eB)</code>
             <code>S₀⁺→{S₀⁺,Snew⁺,S⁻}→Snew⁺</code>

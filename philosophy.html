@@ -174,7 +174,7 @@
           <span>03</span>
           <div>
             <p class="eyebrow">WHAT HAPPENS AT THE AMBER GEOMETRY</p>
-            <h2 id="amber-title">노란 선과 삼각형에 들어가면 화면에서 무엇이 달라지는가</h2>
+            <h2 id="amber-title">노란 선을 건널 때와 그 위 cusp 점에 닿을 때 무엇이 다른가</h2>
           </div>
         </div>
 
@@ -204,8 +204,27 @@
             <p>
               게임에서는 mapping compression이 급격해지고 cusp warning이 뜬다. damage·pickup·bonus score는 없다.
               이 현상을 본 뒤 붙이는 수학적 이름이 <strong>Whitney cusp</strong>이고, 조건은 kernel direction이 <code>Σ</code>의 tangent가 되는 것이다.
+              네 cusp만 모은 stratum은 discrete이지만, 각 cusp 근방에도 <code>Σ</code>의 ordinary point가 계속 이어진다. singular set 자체는 고립점이 아니다.
             </p>
           </div>
+        </div>
+
+        <div class="entity-taxonomy" data-source="src/singularity-types.js" data-quote="export const SINGULARITY_CATALOG = Object.freeze({">
+          <article data-entity="ordinary-fold-point">
+            <small>1 · ORDINARY POINT OF Σ</small>
+            <h3><code>(u,v)↦(u,v²)</code></h3>
+            <p>domain singular locus는 국소적으로 <code>v=0</code>인 1차원 곡선이다. shooter의 pair birth/death는 이 곡선의 ordinary point를 가로지를 때 일어난다.</p>
+          </article>
+          <article data-entity="cusp-on-fold-curve">
+            <small>2 · CUSP POINT ON Σ</small>
+            <h3><code>(u,v)↦(u,v³+uv)</code></h3>
+            <p>cusp들만 모으면 0차원 discrete set이지만, cusp도 같은 1차원 <code>Σ</code> 위의 점이다. A3/B 모드는 cusp 근처의 두 ordinary arm을 건너지 cusp 점 자체를 치지 않는다.</p>
+          </article>
+          <article data-entity="isolated-branch-point">
+            <small>3 · ISOLATED BRANCH POINT</small>
+            <h3><code>z↦z²</code></h3>
+            <p>Weierstrass <code>℘:T²→S²</code>의 네 ramification point처럼 domain singular locus 자체가 0차원이다. 이것은 비교용이고 현재 two-band 게임에는 생성되지 않는다.</p>
+          </article>
         </div>
       </section>
 
@@ -316,7 +335,7 @@
               <tr data-calculation-object="chern-integral" data-game-status="verified-not-played"><th>SPEC의 C=1 receipt</th><td><code>(1/2π)∫<sub>BZ</sub>λ̄=C</code></td><td><strong class="control">테스트 검산, 점수 아님</strong></td></tr>
               <tr data-calculation-object="packet-score" data-game-status="proxy"><th>아래 packet meter</th><td><code>Σ ε<sub>j</sub></code></td><td><strong class="proxy">부호 상쇄 proxy</strong></td></tr>
               <tr data-calculation-object="front" data-game-status="conceptual"><th>fold에서도 유지되는 sphere</th><td><code>(f,N)</code> front</td><td><strong class="conceptual">관계만 표시</strong></td></tr>
-              <tr data-calculation-object="singular-curvature" data-game-status="not-computed"><th>cusp warning</th><td><code>κ<sub>s</sub></code></td><td><strong class="absent">수치 미계산</strong></td></tr>
+              <tr data-calculation-object="singular-curvature" data-game-status="not-computed"><th>amber curve 전체</th><td><code>κ<sub>s</sub></code>는 regular fold를 따라 정의되고 cusp에서 발산</td><td><strong class="absent">수치 미계산</strong></td></tr>
               <tr data-calculation-object="projector-polynomial" data-game-status="not-implemented"><th>화면 대응 없음</th><td><code>K<sub>α</sub>(H)</code></td><td><strong class="absent">미구현</strong></td></tr>
             </tbody>
           </table>
@@ -340,7 +359,7 @@
             <p><code>θ&gt;30°: A⁺</code> · <code>B⁺+C⁻</code>가 fold에서 소멸</p>
           </div>
           <div class="formula-block">
-            <small>CUSP · SAME COUNT, DIFFERENT SURVIVOR</small>
+            <small>PATH AROUND A CUSP · TWO ORDINARY FOLD CROSSINGS</small>
             <p><code>S₀⁺ → {S₀⁺,Snew⁺,S⁻} → Snew⁺</code></p>
             <p>처음부터 있던 <code>S₀⁺</code>는 마지막 fold에서 <code>S⁻</code>와 소멸</p>
             <p>마지막 한 장은 첫 fold에서 태어난 <code>Snew⁺</code></p>
@@ -353,7 +372,7 @@
             <tbody>
               <tr><th>이전 root에서 다음 root로 continuation beam을 쏨</th><td><code>f⁻¹(γ)⊂T²</code>의 같은 connected sheet를 시간축으로 연결</td><td><strong class="exact">stable sheet ID</strong></td></tr>
               <tr><th>한 time layer의 두 root를 pair로 잠금</th><td>fold에서 함께 태어나거나 죽는 두 root의 부호가 <code>+1,−1</code>인지 확인</td><td><strong class="exact">birth/death parentage</strong></td></tr>
-              <tr><th>target <code>q(A,B)</code>를 직접 움직임</th><td>Bloch sphere 경로가 critical-value curve를 어디서 어떤 방향으로 지나는지 선택</td><td><strong class="exact">path controls the event</strong></td></tr>
+              <tr><th>target <code>q(A,B)</code>를 직접 움직임</th><td>Bloch sphere 경로가 <code>f(Σ)</code>의 ordinary arm을 어디서 어떤 방향으로 지나는지 선택; cusp 값은 별도 triangle</td><td><strong class="exact">path controls the event</strong></td></tr>
               <tr><th>source root 세 개가 보임</th><td>현재 snapshot의 multiplicity일 뿐, 어느 sheet가 살아남는지는 아직 알 수 없음</td><td><strong class="proxy">root count ≠ answer</strong></td></tr>
               <tr><th>모든 transition 뒤 receipt가 열림</th><td>target path, root 좌표, ID, <code>sgn λ̄</code>, continuation edge, parentage, residual, signed sum</td><td><strong class="exact">trace evidence</strong></td></tr>
               <tr><th><code>Σ sgn λ̄=+1</code>이 유지됨</th><td><code>+/−</code> pair는 raw layer 수를 바꾸지만 signed multiplicity와 degree는 바꾸지 않음</td><td><strong class="exact">signed invariant</strong></td></tr>
@@ -363,7 +382,7 @@
 
         <div class="normal-form-boundary">
           <b>A/B의 실제 차이</b>
-          <p><a href="./shooter.html">A · CONTINUATION STRIKE</a>에서는 target 경로가 고정되고 player가 root correspondence와 fold pair를 복원한다. <a href="./shooter.html">B · SHEET RUNNER</a>에서는 lineage 목표가 고정되고 player가 target 경로를 조종해 fold를 피하거나 cusp survivor를 교환한다. 둘 다 최종 root 수나 정답 숫자만으로 성공하지 않는다. 기존 torus mode는 한 source가 만드는 local image를 보여주고, 두 trace mode는 한 target의 모든 source가 시간에 따라 어떻게 이어지는지를 계산한다.</p>
+          <p><a href="./shooter.html">A · CONTINUATION STRIKE</a>에서는 target 경로가 고정되고 player가 root correspondence와 ordinary fold pair를 복원한다. <a href="./shooter.html">B · SHEET RUNNER</a>에서는 lineage 목표가 고정되고 player가 target 경로를 조종해 cusp 근처 <code>f(Σ)</code>의 두 arm을 피하거나 건넌다. cusp 점 자체와 두 ordinary crossing은 같은 entity가 아니다. 둘 다 최종 root 수나 정답 숫자만으로 성공하지 않는다. 기존 torus mode는 한 source가 만드는 local image를 보여주고, 두 trace mode는 한 target의 모든 source가 시간에 따라 어떻게 이어지는지를 계산한다.</p>
         </div>
       </section>
     </main>

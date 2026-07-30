@@ -251,6 +251,14 @@ code {
 .cusp-event h3 { margin-top: 9px; }
 .cusp-event p { margin: 12px 0 0; font-size: 13px; }
 
+.entity-taxonomy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 18px; border: 1px solid var(--line); background: var(--line); }
+.entity-taxonomy article { min-width: 0; padding: 23px; background: var(--panel); }
+.entity-taxonomy article:nth-child(2) { background: linear-gradient(145deg, rgba(255,201,107,.065), var(--panel) 62%); }
+.entity-taxonomy article:last-child { background: linear-gradient(145deg, rgba(255,130,111,.045), var(--panel) 62%); }
+.entity-taxonomy small { color: var(--amber); font-size: 8px; letter-spacing: .12em; }
+.entity-taxonomy h3 { margin-top: 12px; font-size: 17px; }
+.entity-taxonomy p { margin: 12px 0 0; font-size: 12px; line-height: 1.65; }
+
 .singularity-lock {
   display: grid;
   grid-template-columns: 1fr auto 1.35fr auto 1fr;
@@ -503,6 +511,7 @@ footer p { max-width: 640px; margin: 0; color: var(--faint); font-family: inheri
   .dimension-warning { grid-template-columns: 1fr; gap: 10px; }
   .lab-layout,
   .failure-grid,
+  .entity-taxonomy,
   .degree-grid,
   .honesty-grid,
   .coverage-translation { grid-template-columns: 1fr; }

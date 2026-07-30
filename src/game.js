@@ -1,3 +1,9 @@
+import {
+  FOLD_CURVE_LOCUS,
+  SINGULARITY_IDS,
+  singularityEntity,
+} from "./singularity-types.js";
+
 export const TAU = Math.PI * 2;
 export const FIXED_STEP = 1 / 120;
 export const PLAYER_RADIUS = 0.018;
@@ -192,58 +198,62 @@ export function nearestCuspDistance(source) {
 export function fieldEffectAt(source, {
   foldThreshold = 0.035,
   cuspRadius = 0.05,
+  singularTolerance = 1e-9,
+  cuspPointTolerance = 1e-8,
 } = {}) {
   const signedDensity = signedAreaDensity(source.u, source.v);
   const cuspDistance = nearestCuspDistance(source);
+  const onSingularCurve = Math.abs(signedDensity) <= singularTolerance;
+  const nearFoldCurve = !onSingularCurve && Math.abs(signedDensity) < foldThreshold;
+  const withinCuspWarning = cuspDistance < cuspRadius;
+  const atCuspPoint = onSingularCurve && cuspDistance <= cuspPointTolerance;
+  const singularPoint = onSingularCurve
+    ? singularityEntity(atCuspPoint
+      ? SINGULARITY_IDS.CUSP_ON_FOLD_CURVE
+      : SINGULARITY_IDS.ORDINARY_FOLD_POINT)
+    : null;
+  const shared = {
+    signedDensity,
+    metricDeterminant: signedDensity ** 2,
+    sign: onSingularCurve ? 0 : Math.sign(signedDensity),
+    onSingularCurve,
+    nearFoldCurve,
+    singularLocus: onSingularCurve ? FOLD_CURVE_LOCUS : null,
+    singularPoint,
+    cuspProximity: {
+      distance: cuspDistance,
+      withinWarningRadius: withinCuspWarning,
+      atCuspPoint,
+    },
+    causesDamage: false,
+    isCollectible: false,
+  };
 
-  if (cuspDistance < cuspRadius) {
+  if (onSingularCurve) {
     return {
-      kind: "cusp",
-      signedDensity,
-      metricDeterminant: signedDensity ** 2,
-      sign: Math.sign(signedDensity),
-      localResponse: "rank-loss",
-      packetSign: null,
-      causesDamage: false,
-      isCollectible: false,
-    };
-  }
-
-  if (Math.abs(signedDensity) < foldThreshold) {
-    return {
+      ...shared,
       kind: "fold",
-      signedDensity,
-      metricDeterminant: signedDensity ** 2,
-      sign: Math.sign(signedDensity),
       localResponse: "rank-loss",
       packetSign: null,
-      causesDamage: false,
-      isCollectible: false,
     };
   }
 
   if (signedDensity < 0) {
     return {
-      kind: "reversed",
-      signedDensity,
-      metricDeterminant: signedDensity ** 2,
-      sign: -1,
-      localResponse: "orientation-reversed",
+      ...shared,
+      kind: nearFoldCurve ? "near-fold" : "reversed",
+      regionKind: "reversed",
+      localResponse: nearFoldCurve ? "approaching-rank-loss" : "orientation-reversed",
       packetSign: -1,
-      causesDamage: false,
-      isCollectible: false,
     };
   }
 
   return {
-    kind: "positive",
-    signedDensity,
-    metricDeterminant: signedDensity ** 2,
-    sign: 1,
-    localResponse: "orientation-preserved",
+    ...shared,
+    kind: nearFoldCurve ? "near-fold" : "positive",
+    regionKind: "positive",
+    localResponse: nearFoldCurve ? "approaching-rank-loss" : "orientation-preserved",
     packetSign: 1,
-    causesDamage: false,
-    isCollectible: false,
   };
 }
 
@@ -612,6 +622,7 @@ export function stepMission(state, input, dt = FIXED_STEP) {
 
   const previousOrientation = state.orientation;
   const previousFieldKind = state.fieldEffect.kind;
+  const previousCuspWarning = state.fieldEffect.cuspProximity.withinWarningRadius;
   const nextSource = stepSource(state.source, input, dt);
   state.source = nextSource;
   state.elapsed += dt;
@@ -639,10 +650,21 @@ export function stepMission(state, input, dt = FIXED_STEP) {
 
   if (
     state.fieldEffect.kind !== previousFieldKind
-    && ["fold", "cusp"].includes(state.fieldEffect.kind)
+    && ["near-fold", "fold"].includes(state.fieldEffect.kind)
   ) {
     state.events.push({
       type: "field",
+      effect: state.fieldEffect,
+      elapsed: state.elapsed,
+    });
+  }
+
+  if (
+    state.fieldEffect.cuspProximity.withinWarningRadius
+    && !previousCuspWarning
+  ) {
+    state.events.push({
+      type: "cusp-warning",
       effect: state.fieldEffect,
       elapsed: state.elapsed,
     });

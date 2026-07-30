@@ -84,13 +84,14 @@ a { color: inherit; text-decoration: none; }
 .trace-scoreboard strong { margin-top: 5px; color: var(--cyan); font: 700 20px var(--mono); }
 .trace-scoreboard span { margin-top: 5px; color: var(--amber); font: 500 8px var(--mono); }
 
-.live-calculation { display: grid; grid-template-columns: 1.2fr 1fr .72fr; border: 1px solid var(--line); background: rgba(7,20,29,.8); }
+.live-calculation { display: grid; grid-template-columns: 1.15fr 1fr .7fr 1fr; border: 1px solid var(--line); background: rgba(7,20,29,.8); }
 .live-calculation > div { min-width: 0; padding: 13px 16px; }
 .live-calculation > div + div { border-left: 1px solid var(--line); }
 .live-calculation small, .live-calculation code { display: block; }
 .live-calculation small { color: var(--faint); font: 600 7px var(--mono); letter-spacing: .13em; }
 .live-calculation code { overflow: hidden; margin-top: 7px; color: var(--ink); font: 500 10px/1.5 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.live-calculation > div:last-child code { color: var(--cyan); font-weight: 700; }
+.live-calculation > div:nth-child(3) code { color: var(--cyan); font-weight: 700; }
+.live-calculation > div:last-child code { color: var(--amber); }
 
 .trace-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 12px; margin-top: 12px; }
 .trace-arena-panel, .trace-data-panel { min-width: 0; border: 1px solid var(--line); background: rgba(8,22,31,.72); }
@@ -141,6 +142,8 @@ a { color: inherit; text-decoration: none; }
 .receipt-rule b { color: var(--amber); font: 700 9px var(--mono); letter-spacing: .12em; }
 .receipt-rule p { margin: 8px 0 0; color: var(--muted); font: 500 9px/1.65 var(--mono); }
 .receipt-rule code { color: var(--ink); }
+.entity-rule { border-color: rgba(101,255,226,.26); background: rgba(101,255,226,.025); }
+.entity-rule b { color: var(--cyan); }
 
 .trace-start, .trace-end { position: fixed; z-index: 90; inset: 0; display: grid; overflow: auto; place-content: center; padding: 34px; background: rgba(4,12,18,.96); backdrop-filter: blur(16px); }
 .trace-start[hidden], .trace-end[hidden] { display: none; }
